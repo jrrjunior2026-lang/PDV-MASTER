@@ -6,6 +6,7 @@ import { IProduct, ICartItem, ICustomer, ISettings, ICashRegister, ISale } from 
 import { formatCurrency, Button, Input, ConfirmModal, AlertModal } from '../components/UI';
 import { PixService } from '../services/pixService';
 import QRCode from 'qrcode';
+import { AuditService } from '../services/auditService';
 
 export const POS: React.FC = () => {
   const [products, setProducts] = useState<IProduct[]>([]);
@@ -268,6 +269,13 @@ export const POS: React.FC = () => {
         date: new Date().toISOString()
     });
     
+    // Audit Log for Cash Movements
+    AuditService.log(
+        'REGISTER_CLOSE', // Using generic register action type, ideally should be CASH_OP
+        `${type === 'BLEED' ? 'Sangria' : 'Suprimento'}: R$ ${val.toFixed(2)}. Motivo: ${cashReason}`, 
+        type === 'BLEED' ? 'WARNING' : 'INFO'
+    );
+
     setRegister(StorageService.getCurrentRegister());
     setActiveModal('NONE');
     setCashValue('');
@@ -310,12 +318,14 @@ export const POS: React.FC = () => {
 
   const handleCancelItem = () => {
     if (cart.length > 0) {
+        const itemToRemove = cart[cart.length - 1];
         setConfirmState({
             isOpen: true,
             title: 'Cancelar Item',
-            message: `Deseja remover o item "${cart[cart.length - 1].name}" do carrinho?`,
+            message: `Deseja remover o item "${itemToRemove.name}" do carrinho?`,
             variant: 'danger',
             onConfirm: () => {
+                AuditService.log('ITEM_CANCEL', `Cancelou item: ${itemToRemove.name} (R$ ${itemToRemove.total.toFixed(2)})`, 'WARNING');
                 setCart(prev => prev.slice(0, -1));
             }
         });

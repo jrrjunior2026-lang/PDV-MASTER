@@ -1,5 +1,3 @@
-
-
 export enum TransactionType {
   SALE = 'SALE',
   ENTRY = 'ENTRY',
@@ -19,7 +17,6 @@ export interface IProduct {
   taxGroup: 'A' | 'B' | 'C'; // Simples Nacional tax groups simulation
   unit: 'UN' | 'KG' | 'L';
   minStock: number;
-  // FIX: Added optional 'synced' property for database synchronization status.
   synced?: number;
 }
 
@@ -32,7 +29,6 @@ export interface IKardexEntry {
   balanceAfter: number;
   documentRef?: string; // NF-e ID or Sale ID
   description: string;
-  // FIX: Added optional 'synced' property for database synchronization status.
   synced?: number;
 }
 
@@ -49,7 +45,6 @@ export interface ICustomer {
   phone?: string;
   address?: string;
   creditLimit?: number;
-  // FIX: Added optional 'synced' property for database synchronization status.
   synced?: number;
 }
 
@@ -62,7 +57,6 @@ export interface ISale {
   fiscalStatus: 'PENDING' | 'AUTHORIZED' | 'REJECTED' | 'OFFLINE';
   accessKey?: string;
   customerId?: string; // CRM Link
-  // FIX: Added optional 'synced' property for database synchronization status.
   synced?: number;
   amountPaid?: number; // For cash transactions
   change?: number;     // For cash transactions
@@ -77,7 +71,6 @@ export interface IFinancialRecord {
   date: string;
   status: 'PAID' | 'PENDING';
   referenceId?: string; // Link to Sale ID or Purchase Order
-  // FIX: Added optional 'synced' property for database synchronization status.
   synced?: number;
 }
 
@@ -96,7 +89,6 @@ export interface IUser {
 }
 
 export interface ISettings {
-  // FIX: Made 'id' property required for singleton record in the database to ensure type safety with Dexie.
   id: string;
   company: {
     corporateName: string;
@@ -134,7 +126,6 @@ export interface ICashRegister {
   finalCount?: number; // User input
   difference?: number; // finalCount - currentBalance
   operatorId: string;
-  // FIX: Added optional 'synced' property for database synchronization status.
   synced?: number;
 }
 
@@ -145,6 +136,17 @@ export interface ICashTransaction {
   amount: number;
   description: string;
   date: string;
-  // FIX: Added optional 'synced' property for database synchronization status.
   synced?: number;
+}
+
+export interface IAuditLog {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  action: string;
+  details: string;
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+  ip?: string;
 }

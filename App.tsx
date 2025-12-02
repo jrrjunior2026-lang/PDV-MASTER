@@ -1,7 +1,5 @@
-
-
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { POS } from './pages/POS';
@@ -10,15 +8,13 @@ import { Login } from './pages/Login';
 import { Finance } from './pages/Finance';
 import { CRM } from './pages/CRM';
 import { Settings } from './pages/Settings';
-import { Reports } from './pages/Reports'; // Import the new Reports page
+import { Reports } from './pages/Reports';
 import { StorageService } from './services/storageService';
 
 interface ProtectedRouteProps {
-  // FIX: Removed children from props interface. It will be provided by React.PropsWithChildren.
   allowedRoles?: Array<'ADMIN' | 'CASHIER'>;
 }
 
-// FIX: Updated component type to use React.PropsWithChildren for better type safety with components that accept children.
 const ProtectedRoute: React.FC<React.PropsWithChildren<ProtectedRouteProps>> = ({ children, allowedRoles }) => {
   const user = StorageService.getCurrentUser();
   
@@ -36,15 +32,12 @@ const ProtectedRoute: React.FC<React.PropsWithChildren<ProtectedRouteProps>> = (
     return <Navigate to="/" replace />;
   }
 
-  // FIX: The component is always called with children, so the Outlet fallback is not needed and can cause type issues.
   return <>{children}</>;
 };
 
 // This component acts as a wrapper for all routes that need the main layout
 const AppLayout: React.FC = () => (
-  <Layout>
-    <Outlet />
-  </Layout>
+  <Layout />
 );
 
 const App: React.FC = () => {
@@ -71,7 +64,7 @@ const App: React.FC = () => {
           <Route path="/finance" element={<Finance />} />
           <Route path="/crm" element={<CRM />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/reports" element={<Reports />} /> {/* Add the new reports route */}
+          <Route path="/reports" element={<Reports />} />
         </Route>
         
         {/* Fallback route */}

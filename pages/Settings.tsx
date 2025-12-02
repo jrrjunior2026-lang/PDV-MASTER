@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
-import { ISettings } from '../types';
+import { ISettings, IAuditLog } from '../types';
 import { Button, Input, Card, AlertModal, Badge, ConfirmModal } from '../components/UI';
-import { Building2, FileCheck, CreditCard, Palette, Save, Upload, Trash2, Image as ImageIcon, Users, UserPlus, Pencil, Shield } from 'lucide-react';
+import { Building2, FileCheck, CreditCard, Palette, Save, Upload, Trash2, Image as ImageIcon, Users, UserPlus, Pencil, Shield, AlertTriangle, Search } from 'lucide-react';
+import { AuditService } from '../services/auditService'; // Import Audit
 
 export const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'COMPANY' | 'FISCAL' | 'PAYMENT' | 'APPEARANCE' | 'USERS'>('COMPANY');
+  const [activeTab, setActiveTab] = useState<'COMPANY' | 'FISCAL' | 'PAYMENT' | 'APPEARANCE' | 'USERS' | 'SECURITY'>('COMPANY');
   const [settings, setSettings] = useState<ISettings>(StorageService.getSettings());
   const [loading, setLoading] = useState(false);
   
@@ -14,6 +15,10 @@ export const Settings: React.FC = () => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'CASHIER' });
+
+  // Audit State
+  const [logs, setLogs] = useState<IAuditLog[]>([]);
+  const [logFilter, setLogFilter] = useState('');
 
   const [alertState, setAlertState] = useState<{isOpen: boolean, title: string, message: string, type: 'info'|'error'|'success'}>({
       isOpen: false, title: '', message: '', type: 'info'
@@ -26,11 +31,17 @@ export const Settings: React.FC = () => {
   useEffect(() => {
       if (activeTab === 'USERS') {
           refreshUsers();
+      } else if (activeTab === 'SECURITY') {
+          refreshLogs();
       }
   }, [activeTab]);
 
   const refreshUsers = () => {
       setUsers(StorageService.getUsers());
+  };
+
+  const refreshLogs = () => {
+      setLogs(AuditService.getLogs());
   };
 
   const showAlert = (message: string, title: string = 'Atenção', type: 'info'|'error'|'success' = 'info') => {
@@ -109,7 +120,14 @@ export const Settings: React.FC = () => {
     { id: 'PAYMENT', label: 'Pagamentos', icon: <CreditCard size={20}/> },
     { id: 'APPEARANCE', label: 'Visual & PDV', icon: <Palette size={20}/> },
     { id: 'USERS', label: 'Usuários', icon: <Users size={20}/> },
+    { id: 'SECURITY', label: 'Segurança & Auditoria', icon: <Shield size={20}/> },
   ];
+
+  const filteredLogs = logs.filter(l => 
+      l.details.toLowerCase().includes(logFilter.toLowerCase()) || 
+      l.userName.toLowerCase().includes(logFilter.toLowerCase()) ||
+      l.action.toLowerCase().includes(logFilter.toLowerCase())
+  );
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
@@ -136,7 +154,7 @@ export const Settings: React.FC = () => {
                 <h1 className="text-2xl font-bold text-slate-800">Configurações do Sistema</h1>
                 <p className="text-slate-500">Gerencie dados da empresa, emissão fiscal e personalização.</p>
             </div>
-            {activeTab !== 'USERS' && (
+            {activeTab !== 'USERS' && activeTab !== 'SECURITY' && (
                 <Button onClick={handleSave} disabled={loading} className="gap-2">
                     <Save size={18} /> {loading ? 'Salvando...' : 'Salvar Alterações'}
                 </Button>
@@ -347,6 +365,69 @@ export const Settings: React.FC = () => {
                                                 </td>
                                             </tr>
                                         ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'SECURITY' && (
+                        <div className="space-y-5 animate-fadeIn">
+                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                <h3 className="text-lg font-bold flex items-center gap-2">
+                                    <Shield className="text-slate-600"/> Auditoria e Logs do Sistema
+                                </h3>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                                    <input 
+                                        className="pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:border-brand-500"
+                                        placeholder="Buscar logs..."
+                                        value={logFilter}
+                                        onChange={(e) => setLogFilter(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="overflow-hidden border border-slate-200 rounded-lg">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold">
+                                        <tr>
+                                            <th className="px-6 py-3">Data/Hora</th>
+                                            <th className="px-6 py-3">Usuário</th>
+                                            <th className="px-6 py-3">Ação</th>
+                                            <th className="px-6 py-3">Detalhes</th>
+                                            <th className="px-6 py-3 text-right">Nível</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 bg-white">
+                                        {filteredLogs.map(log => (
+                                            <tr key={log.id} className="hover:bg-slate-50 transition">
+                                                <td className="px-6 py-4 text-slate-500 font-mono text-xs">
+                                                    {new Date(log.timestamp).toLocaleString()}
+                                                </td>
+                                                <td className="px-6 py-4 font-medium text-slate-800">
+                                                    {log.userName} <span className="text-slate-400 text-xs">({log.userRole})</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="font-bold text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">{log.action}</span>
+                                                </td>
+                                                <td className="px-6 py-4 text-slate-600 truncate max-w-xs" title={log.details}>
+                                                    {log.details}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    {log.severity === 'CRITICAL' && <Badge color="bg-red-100 text-red-700">Crítico</Badge>}
+                                                    {log.severity === 'WARNING' && <Badge color="bg-amber-100 text-amber-700">Atenção</Badge>}
+                                                    {log.severity === 'INFO' && <Badge color="bg-blue-50 text-blue-600">Info</Badge>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {filteredLogs.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5} className="p-8 text-center text-slate-400">
+                                                    Nenhum registro de auditoria encontrado.
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>

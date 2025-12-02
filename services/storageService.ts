@@ -1,6 +1,7 @@
 import { IProduct, IKardexEntry, ISale, TransactionType, ICustomer, IFinancialRecord, IUser, ISettings, ICashRegister, ICashTransaction } from '../types';
+import { AuditService } from './auditService'; // Import Audit
 
-// Seed data
+// --- INITIAL SEED DATA ---
 const INITIAL_PRODUCTS: IProduct[] = [
   { id: '1', code: '7891000100103', name: 'Arroz Branco 5kg', price: 29.90, cost: 22.50, stock: 150, ncm: '1006.30.21', cest: '17.001.00', origin: '0', taxGroup: 'A', unit: 'UN', minStock: 20 },
   { id: '2', code: '7891000200201', name: 'Feijão Carioca 1kg', price: 8.50, cost: 5.20, stock: 300, ncm: '0713.33.99', cest: '17.002.00', origin: '0', taxGroup: 'A', unit: 'UN', minStock: 50 },
@@ -24,7 +25,6 @@ const INITIAL_USERS = [
 ];
 
 const DEFAULT_SETTINGS: ISettings = {
-  // FIX: Added required id property for ISettings type.
   id: '1',
   company: {
     corporateName: 'Minha Loja LTDA',
@@ -36,7 +36,7 @@ const DEFAULT_SETTINGS: ISettings = {
     phone: '(11) 90000-0000'
   },
   fiscal: {
-    environment: '2', // Homologation default
+    environment: '2',
     nfeSeries: 1,
     nfceSeries: 1,
     cscId: '000001',
@@ -63,107 +63,145 @@ const KEYS = {
   CASH_REGISTER: 'pdv_master_cash_register',
   CASH_TRANSACTIONS: 'pdv_master_cash_transactions',
   USERS: 'pdv_master_users',
-  CASH_REGISTER_HISTORY: 'pdv_master_cash_register_history' // New key for history
+  CASH_REGISTER_HISTORY: 'pdv_master_cash_register_history'
 };
 
-// Helper to simulate sync delay
+// --- SAFE STORAGE WRAPPER ---
+const memoryStorage: Record<string, string> = {};
+
+const SafeStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      return memoryStorage[key] || null;
+    }
+  },
+  setItem: (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      memoryStorage[key] = value;
+    }
+  },
+  removeItem: (key: string) => {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      delete memoryStorage[key];
+    }
+  }
+};
+
+// Helper for simulating async behavior
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export const StorageService = {
   // Auth
   initUsers: () => {
-    if (!localStorage.getItem(KEYS.USERS)) {
-      localStorage.setItem(KEYS.USERS, JSON.stringify(INITIAL_USERS));
+    if (!SafeStorage.getItem(KEYS.USERS)) {
+      SafeStorage.setItem(KEYS.USERS, JSON.stringify(INITIAL_USERS));
     }
   },
 
   getUsers: (): any[] => {
     StorageService.initUsers();
-    const users = localStorage.getItem(KEYS.USERS);
+    const users = SafeStorage.getItem(KEYS.USERS);
     return users ? JSON.parse(users) : INITIAL_USERS;
   },
 
   saveUser: (user: any) => {
     const users = StorageService.getUsers();
     const index = users.findIndex((u: any) => u.id === user.id);
+    let action = 'Criou';
     if (index >= 0) {
       users[index] = user;
+      action = 'Editou';
     } else {
       users.push(user);
     }
-    localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+    SafeStorage.setItem(KEYS.USERS, JSON.stringify(users));
+    AuditService.log('USER_MGMT', `${action} usuário: ${user.name} (${user.role})`, 'WARNING');
   },
 
   deleteUser: (id: string) => {
     let users = StorageService.getUsers();
+    const userToDelete = users.find((u: any) => u.id === id);
     users = users.filter((u: any) => u.id !== id);
-    localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+    SafeStorage.setItem(KEYS.USERS, JSON.stringify(users));
+    AuditService.log('USER_MGMT', `Excluiu usuário: ${userToDelete?.name || id}`, 'CRITICAL');
   },
 
   login: async (email: string, password: string): Promise<IUser | null> => {
     StorageService.initUsers();
-    await delay(600);
+    await delay(300);
     
-    const users = JSON.parse(localStorage.getItem(KEYS.USERS) || '[]');
+    const users = StorageService.getUsers();
     const user = users.find((u: any) => u.email === email && u.password === password);
 
     if (user) {
-      // Remove password before saving to session
       const { password, ...safeUser } = user;
-      localStorage.setItem(KEYS.SESSION, JSON.stringify(safeUser));
+      SafeStorage.setItem(KEYS.SESSION, JSON.stringify(safeUser));
+      AuditService.log('LOGIN', `Acesso realizado: ${safeUser.name}`, 'INFO', safeUser);
       return safeUser;
     }
     return null;
   },
   
   logout: () => {
-    localStorage.removeItem(KEYS.SESSION);
+    const user = StorageService.getCurrentUser();
+    if(user) AuditService.log('LOGOUT', `Saída do sistema: ${user.name}`, 'INFO');
+    SafeStorage.removeItem(KEYS.SESSION);
   },
 
   getCurrentUser: (): IUser | null => {
-    const data = localStorage.getItem(KEYS.SESSION);
+    const data = SafeStorage.getItem(KEYS.SESSION);
     return data ? JSON.parse(data) : null;
   },
 
   // Settings
   getSettings: (): ISettings => {
-    const data = localStorage.getItem(KEYS.SETTINGS);
+    const data = SafeStorage.getItem(KEYS.SETTINGS);
     return data ? JSON.parse(data) : DEFAULT_SETTINGS;
   },
 
   saveSettings: (settings: ISettings) => {
-    localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+    SafeStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+    AuditService.log('SETTINGS_CHANGE', 'Configurações do sistema alteradas', 'WARNING');
   },
 
   // Products
   getProducts: (): IProduct[] => {
-    const data = localStorage.getItem(KEYS.PRODUCTS);
+    const data = SafeStorage.getItem(KEYS.PRODUCTS);
     return data ? JSON.parse(data) : INITIAL_PRODUCTS;
   },
   
   saveProduct: (product: IProduct) => {
     const products = StorageService.getProducts();
     const index = products.findIndex(p => p.id === product.id);
+    let action = "Criou";
     if (index >= 0) {
       products[index] = product;
+      action = "Editou";
     } else {
       products.push(product);
     }
-    localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+    SafeStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+    AuditService.log('STOCK_UPDATE', `${action} produto: ${product.name} (Estoque: ${product.stock})`, 'INFO');
   },
 
   saveProductsBatch: (newProducts: IProduct[]) => {
     const products = StorageService.getProducts();
-    // Merge strategy: Update if code exists, add if not
     newProducts.forEach(np => {
         const idx = products.findIndex(p => p.code === np.code);
         if (idx >= 0) {
-            products[idx] = { ...products[idx], ...np, id: products[idx].id }; // Keep original ID
+            products[idx] = { ...products[idx], ...np, id: products[idx].id }; 
         } else {
             products.push(np);
         }
     });
-    localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+    SafeStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+    AuditService.log('STOCK_UPDATE', `Importação em lote: ${newProducts.length} produtos processados`, 'WARNING');
   },
 
   updateStock: (productId: string, qtyDelta: number, type: TransactionType, docRef: string, desc: string) => {
@@ -177,7 +215,7 @@ export const StorageService = {
     product.stock = newStock;
 
     // 1. Update Product
-    localStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
+    SafeStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
 
     // 2. Add Kardex Entry
     const entry: IKardexEntry = {
@@ -193,18 +231,23 @@ export const StorageService = {
     
     const kardex = StorageService.getKardex();
     kardex.push(entry);
-    localStorage.setItem(KEYS.KARDEX, JSON.stringify(kardex));
+    SafeStorage.setItem(KEYS.KARDEX, JSON.stringify(kardex));
+    
+    // Log manual adjustments explicitly
+    if (type === TransactionType.ADJUSTMENT) {
+        AuditService.log('STOCK_UPDATE', `Ajuste manual: ${product.name} (${qtyDelta > 0 ? '+' : ''}${qtyDelta}). Motivo: ${desc}`, 'WARNING');
+    }
   },
 
   // Kardex
   getKardex: (): IKardexEntry[] => {
-    const data = localStorage.getItem(KEYS.KARDEX);
+    const data = SafeStorage.getItem(KEYS.KARDEX);
     return data ? JSON.parse(data) : [];
   },
 
   // Customers
   getCustomers: (): ICustomer[] => {
-    const data = localStorage.getItem(KEYS.CUSTOMERS);
+    const data = SafeStorage.getItem(KEYS.CUSTOMERS);
     return data ? JSON.parse(data) : INITIAL_CUSTOMERS;
   },
 
@@ -216,31 +259,31 @@ export const StorageService = {
     } else {
       customers.push(customer);
     }
-    localStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(customers));
+    SafeStorage.setItem(KEYS.CUSTOMERS, JSON.stringify(customers));
   },
 
   // Finance
   getFinancialRecords: (): IFinancialRecord[] => {
-    const data = localStorage.getItem(KEYS.FINANCE);
+    const data = SafeStorage.getItem(KEYS.FINANCE);
     return data ? JSON.parse(data) : INITIAL_FINANCE;
   },
 
   addFinancialRecord: (record: IFinancialRecord) => {
     const records = StorageService.getFinancialRecords();
     records.push(record);
-    localStorage.setItem(KEYS.FINANCE, JSON.stringify(records));
+    SafeStorage.setItem(KEYS.FINANCE, JSON.stringify(records));
   },
 
   // Cash Register Management
   getCurrentRegister: (): ICashRegister | null => {
-    const data = localStorage.getItem(KEYS.CASH_REGISTER);
+    const data = SafeStorage.getItem(KEYS.CASH_REGISTER);
     if (!data) return null;
     const register = JSON.parse(data) as ICashRegister;
     return register.status === 'OPEN' ? register : null;
   },
 
   getLastClosedRegister: (): ICashRegister | null => {
-    const history = JSON.parse(localStorage.getItem(KEYS.CASH_REGISTER_HISTORY) || '[]');
+    const history = JSON.parse(SafeStorage.getItem(KEYS.CASH_REGISTER_HISTORY) || '[]');
     if (history.length > 0) {
         return history[history.length - 1];
     }
@@ -251,7 +294,7 @@ export const StorageService = {
       const register = StorageService.getCurrentRegister();
       if (!register) return null;
       
-      const txs = JSON.parse(localStorage.getItem(KEYS.CASH_TRANSACTIONS) || '[]').filter((tx: ICashTransaction) => tx.registerId === register.id);
+      const txs = JSON.parse(SafeStorage.getItem(KEYS.CASH_TRANSACTIONS) || '[]').filter((tx: ICashTransaction) => tx.registerId === register.id);
       
       const summary = {
           opening: register.openingBalance,
@@ -277,7 +320,7 @@ export const StorageService = {
       currentBalance: openingBalance,
       operatorId
     };
-    localStorage.setItem(KEYS.CASH_REGISTER, JSON.stringify(register));
+    SafeStorage.setItem(KEYS.CASH_REGISTER, JSON.stringify(register));
     StorageService.addCashTransaction({
       id: crypto.randomUUID(),
       registerId: register.id,
@@ -286,6 +329,7 @@ export const StorageService = {
       description: 'Abertura de Caixa',
       date: new Date().toISOString()
     });
+    AuditService.log('REGISTER_OPEN', `Caixa aberto com R$ ${openingBalance.toFixed(2)}`, 'INFO');
     return register;
   },
 
@@ -295,20 +339,21 @@ export const StorageService = {
 
     const summary = StorageService.getRegisterSummary();
     const systemBalance = summary ? summary.calculated : register.currentBalance;
+    const diff = userCountedAmount - systemBalance;
 
     register.status = 'CLOSED';
     register.closedAt = new Date().toISOString();
     register.finalCount = userCountedAmount;
-    register.difference = userCountedAmount - systemBalance;
+    register.difference = diff;
     register.currentBalance = systemBalance;
 
     // Move to history
-    const history = JSON.parse(localStorage.getItem(KEYS.CASH_REGISTER_HISTORY) || '[]');
+    const history = JSON.parse(SafeStorage.getItem(KEYS.CASH_REGISTER_HISTORY) || '[]');
     history.push(register);
-    localStorage.setItem(KEYS.CASH_REGISTER_HISTORY, JSON.stringify(history));
+    SafeStorage.setItem(KEYS.CASH_REGISTER_HISTORY, JSON.stringify(history));
 
     // Clear current register
-    localStorage.removeItem(KEYS.CASH_REGISTER);
+    SafeStorage.removeItem(KEYS.CASH_REGISTER);
     
     StorageService.addCashTransaction({
       id: crypto.randomUUID(),
@@ -318,30 +363,32 @@ export const StorageService = {
       description: `Fechamento. Contado: ${userCountedAmount}`,
       date: new Date().toISOString()
     });
+
+    const severity = Math.abs(diff) > 10 ? 'CRITICAL' : (Math.abs(diff) > 0 ? 'WARNING' : 'INFO');
+    AuditService.log('REGISTER_CLOSE', `Caixa fechado. Dif: R$ ${diff.toFixed(2)} (Físico: ${userCountedAmount} vs Sist: ${systemBalance})`, severity);
+
     return register;
   },
 
   addCashTransaction: (tx: ICashTransaction) => {
-    const history = JSON.parse(localStorage.getItem(KEYS.CASH_TRANSACTIONS) || '[]');
+    const history = JSON.parse(SafeStorage.getItem(KEYS.CASH_TRANSACTIONS) || '[]');
     history.push(tx);
-    localStorage.setItem(KEYS.CASH_TRANSACTIONS, JSON.stringify(history));
+    SafeStorage.setItem(KEYS.CASH_TRANSACTIONS, JSON.stringify(history));
 
-    // Update Register Balance if open
     const register = StorageService.getCurrentRegister();
     if (register && register.id === tx.registerId) {
-       // This logic is now redundant because of getRegisterSummary but kept for potential realtime display
        if (tx.type === 'SUPPLY' || tx.type === 'SALE') {
           register.currentBalance += tx.amount;
        } else if (tx.type === 'BLEED') {
           register.currentBalance -= tx.amount;
        }
-       localStorage.setItem(KEYS.CASH_REGISTER, JSON.stringify(register));
+       SafeStorage.setItem(KEYS.CASH_REGISTER, JSON.stringify(register));
     }
   },
 
   // Sales (POS)
   getSales: (): ISale[] => {
-    const data = localStorage.getItem(KEYS.SALES);
+    const data = SafeStorage.getItem(KEYS.SALES);
     return data ? JSON.parse(data) : [];
   },
 
@@ -349,7 +396,7 @@ export const StorageService = {
     await delay(300); // Simulate API latency
     const sales = StorageService.getSales();
     sales.push(sale);
-    localStorage.setItem(KEYS.SALES, JSON.stringify(sales));
+    SafeStorage.setItem(KEYS.SALES, JSON.stringify(sales));
 
     // Update stock for each item
     sale.items.forEach(item => {
@@ -362,7 +409,6 @@ export const StorageService = {
       );
     });
 
-    // Automatically generate financial record
     const record: IFinancialRecord = {
       id: crypto.randomUUID(),
       type: 'INCOME',
@@ -370,12 +416,11 @@ export const StorageService = {
       amount: sale.total,
       category: 'Vendas',
       date: sale.date,
-      status: 'PAID', // Assuming POS is immediate payment
+      status: 'PAID',
       referenceId: sale.id
     };
     StorageService.addFinancialRecord(record);
 
-    // Update Cash Register
     if (sale.paymentMethod === 'CASH') {
         const register = StorageService.getCurrentRegister();
         if (register) {
@@ -389,6 +434,8 @@ export const StorageService = {
             });
         }
     }
+    
+    AuditService.log('SALE_COMPLETE', `Venda #${sale.id.slice(0,8)} finalizada. Total: R$ ${sale.total.toFixed(2)}`, 'INFO');
 
     return sale;
   },
@@ -403,12 +450,20 @@ export const StorageService = {
   },
 
   getClosedRegisters(): ICashRegister[] {
-    const history = localStorage.getItem(KEYS.CASH_REGISTER_HISTORY);
+    const history = SafeStorage.getItem(KEYS.CASH_REGISTER_HISTORY);
     return history ? JSON.parse(history) : [];
   },
 
   getAllCashTransactions(): ICashTransaction[] {
-    const txs = localStorage.getItem(KEYS.CASH_TRANSACTIONS);
+    const txs = SafeStorage.getItem(KEYS.CASH_TRANSACTIONS);
     return txs ? JSON.parse(txs) : [];
+  },
+  
+  getFinancialRecordsByPeriod(start: Date, end: Date): IFinancialRecord[] {
+      const records = StorageService.getFinancialRecords();
+      return records.filter(r => {
+          const d = new Date(r.date);
+          return d >= start && d <= end;
+      });
   }
 };
