@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, formatCurrency } from '../components/UI';
 import { StorageService } from '../services/storageService';
@@ -19,10 +18,9 @@ export const Dashboard: React.FC = () => {
     setSales(s);
     setProducts(p);
     setLoading(false);
-
+    
     // Initial AI analysis
     GeminiService.analyzeBusiness(s, p).then(setInsight);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const totalRevenue = sales.reduce((acc, s) => acc + s.total, 0);
@@ -34,7 +32,7 @@ export const Dashboard: React.FC = () => {
     total: s.total
   }));
 
-  if (loading) return <div>Carregando sistema...</div>;
+  if (loading) return <div className="p-8 text-center text-slate-500">Carregando dados do sistema...</div>;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">

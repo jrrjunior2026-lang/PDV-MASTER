@@ -1,16 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { ISettings } from '../types';
-import { Button, Input, Card, AlertModal } from '../components/UI';
-import { Building2, FileCheck, CreditCard, Palette, Save, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Button, Input, Card, AlertModal, Badge, ConfirmModal } from '../components/UI';
+import { Building2, FileCheck, CreditCard, Palette, Save, Upload, Trash2, Image as ImageIcon, Users, UserPlus, Pencil, Shield } from 'lucide-react';
 
 export const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'COMPANY' | 'FISCAL' | 'PAYMENT' | 'APPEARANCE'>('COMPANY');
+  const [activeTab, setActiveTab] = useState<'COMPANY' | 'FISCAL' | 'PAYMENT' | 'APPEARANCE' | 'USERS'>('COMPANY');
   const [settings, setSettings] = useState<ISettings>(StorageService.getSettings());
   const [loading, setLoading] = useState(false);
+  
+  // Users State
+  const [users, setUsers] = useState<any[]>([]);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'CASHIER' });
+
   const [alertState, setAlertState] = useState<{isOpen: boolean, title: string, message: string, type: 'info'|'error'|'success'}>({
       isOpen: false, title: '', message: '', type: 'info'
   });
+  
+  const [confirmState, setConfirmState] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({
+      isOpen: false, title: '', message: '', onConfirm: () => {}
+  });
+
+  useEffect(() => {
+      if (activeTab === 'USERS') {
+          refreshUsers();
+      }
+  }, [activeTab]);
+
+  const refreshUsers = () => {
+      setUsers(StorageService.getUsers());
+  };
 
   const showAlert = (message: string, title: string = 'Atenção', type: 'info'|'error'|'success' = 'info') => {
       setAlertState({ isOpen: true, message, title, type });
@@ -18,12 +39,9 @@ export const Settings: React.FC = () => {
 
   const handleSave = () => {
     setLoading(true);
-    // Simulate async save
-    setTimeout(() => {
-        StorageService.saveSettings(settings);
-        setLoading(false);
-        showAlert('Configurações salvas com sucesso!', 'Sucesso', 'success');
-    }, 600);
+    StorageService.saveSettings(settings);
+    setLoading(false);
+    showAlert('Configurações salvas com sucesso!', 'Sucesso', 'success');
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,11 +62,53 @@ export const Settings: React.FC = () => {
     }
   };
 
+  // User Actions
+  const handleEditUser = (user: any) => {
+      setEditingUser(user);
+      setUserForm({ name: user.name, email: user.email, password: user.password, role: user.role });
+      setShowUserModal(true);
+  };
+
+  const handleDeleteUser = (id: string) => {
+      if (users.length <= 1) {
+          return showAlert('Não é possível excluir o único usuário do sistema.', 'Erro', 'error');
+      }
+      setConfirmState({
+          isOpen: true,
+          title: 'Excluir Usuário',
+          message: 'Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.',
+          onConfirm: () => {
+              StorageService.deleteUser(id);
+              refreshUsers();
+              showAlert('Usuário excluído.', 'Sucesso', 'success');
+          }
+      });
+  };
+
+  const handleSaveUser = () => {
+      if (!userForm.name || !userForm.email || !userForm.password) {
+          return showAlert('Preencha todos os campos obrigatórios.');
+      }
+      
+      const userPayload = {
+          id: editingUser ? editingUser.id : crypto.randomUUID(),
+          ...userForm
+      };
+      
+      StorageService.saveUser(userPayload);
+      setShowUserModal(false);
+      setEditingUser(null);
+      setUserForm({ name: '', email: '', password: '', role: 'CASHIER' });
+      refreshUsers();
+      showAlert(editingUser ? 'Usuário atualizado!' : 'Usuário criado com sucesso!', 'Sucesso', 'success');
+  };
+
   const tabs = [
     { id: 'COMPANY', label: 'Empresa', icon: <Building2 size={20}/> },
     { id: 'FISCAL', label: 'Fiscal (NFC-e)', icon: <FileCheck size={20}/> },
     { id: 'PAYMENT', label: 'Pagamentos', icon: <CreditCard size={20}/> },
     { id: 'APPEARANCE', label: 'Visual & PDV', icon: <Palette size={20}/> },
+    { id: 'USERS', label: 'Usuários', icon: <Users size={20}/> },
   ];
 
   return (
@@ -61,15 +121,26 @@ export const Settings: React.FC = () => {
             message={alertState.message}
             type={alertState.type}
         />
+        
+        <ConfirmModal 
+            isOpen={confirmState.isOpen}
+            onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+            onConfirm={confirmState.onConfirm}
+            title={confirmState.title}
+            message={confirmState.message}
+            variant="danger"
+        />
 
         <div className="flex justify-between items-center">
             <div>
                 <h1 className="text-2xl font-bold text-slate-800">Configurações do Sistema</h1>
                 <p className="text-slate-500">Gerencie dados da empresa, emissão fiscal e personalização.</p>
             </div>
-            <Button onClick={handleSave} disabled={loading} className="gap-2">
-                <Save size={18} /> {loading ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
+            {activeTab !== 'USERS' && (
+                <Button onClick={handleSave} disabled={loading} className="gap-2">
+                    <Save size={18} /> {loading ? 'Salvando...' : 'Salvar Alterações'}
+                </Button>
+            )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -231,9 +302,120 @@ export const Settings: React.FC = () => {
                             </div>
                         </div>
                     )}
+
+                    {activeTab === 'USERS' && (
+                        <div className="space-y-5 animate-fadeIn">
+                            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                                <h3 className="text-lg font-bold flex items-center gap-2">
+                                    <Users className="text-brand-600"/> Gerenciamento de Usuários
+                                </h3>
+                                <Button onClick={() => { setEditingUser(null); setUserForm({ name: '', email: '', password: '', role: 'CASHIER' }); setShowUserModal(true); }}>
+                                    <UserPlus size={18}/> Novo Usuário
+                                </Button>
+                            </div>
+
+                            <div className="overflow-hidden border border-slate-200 rounded-lg">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold">
+                                        <tr>
+                                            <th className="px-6 py-3">Nome</th>
+                                            <th className="px-6 py-3">Email / Login</th>
+                                            <th className="px-6 py-3">Função</th>
+                                            <th className="px-6 py-3 text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 bg-white">
+                                        {users.map(u => (
+                                            <tr key={u.id} className="hover:bg-slate-50 transition">
+                                                <td className="px-6 py-4 font-medium text-slate-800">{u.name}</td>
+                                                <td className="px-6 py-4 text-slate-500">{u.email}</td>
+                                                <td className="px-6 py-4">
+                                                    {u.role === 'ADMIN' 
+                                                     ? <Badge color="bg-blue-100 text-blue-700">Administrador</Badge>
+                                                     : <Badge color="bg-emerald-100 text-emerald-700">Operador de Caixa</Badge>
+                                                    }
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button onClick={() => handleEditUser(u)} className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition">
+                                                            <Pencil size={16} />
+                                                        </button>
+                                                        <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition">
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </Card>
             </div>
         </div>
+
+        {/* User Modal */}
+        {showUserModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-scaleIn">
+                    <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        {editingUser ? <Pencil size={20}/> : <UserPlus size={20}/>}
+                        {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
+                    </h3>
+                    
+                    <div className="space-y-4">
+                        <Input 
+                            label="Nome Completo" 
+                            value={userForm.name} 
+                            onChange={e => setUserForm({...userForm, name: e.target.value})}
+                            placeholder="Ex: João da Silva"
+                        />
+                        <Input 
+                            label="Email / Login" 
+                            value={userForm.email} 
+                            onChange={e => setUserForm({...userForm, email: e.target.value})}
+                            placeholder="usuario@sistema.com"
+                        />
+                        <Input 
+                            label="Senha" 
+                            type="text" 
+                            value={userForm.password} 
+                            onChange={e => setUserForm({...userForm, password: e.target.value})}
+                            placeholder="******"
+                        />
+                        
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-500 uppercase">Nível de Acesso</label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button 
+                                    type="button"
+                                    onClick={() => setUserForm({...userForm, role: 'ADMIN'})}
+                                    className={`p-3 rounded-lg border-2 flex flex-col items-center gap-2 transition ${userForm.role === 'ADMIN' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                    <Shield size={20}/>
+                                    <span className="text-sm font-bold">Administrador</span>
+                                </button>
+                                <button 
+                                    type="button"
+                                    onClick={() => setUserForm({...userForm, role: 'CASHIER'})}
+                                    className={`p-3 rounded-lg border-2 flex flex-col items-center gap-2 transition ${userForm.role === 'CASHIER' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                    <CreditCard size={20}/>
+                                    <span className="text-sm font-bold">Caixa</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 flex justify-end gap-3">
+                        <Button variant="secondary" onClick={() => setShowUserModal(false)}>Cancelar</Button>
+                        <Button onClick={handleSaveUser}>Salvar Usuário</Button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 };

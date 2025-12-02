@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, CreditCard, Trash2, CheckCircle, Wifi, WifiOff, RefreshCcw, Home, User, Menu, DollarSign, X, AlertOctagon, TrendingUp, TrendingDown, Lock, ChevronRight, Monitor, Printer, Image as ImageIcon, Package, Copy, Smartphone, FileText, Calendar, Clock } from 'lucide-react';
+import { Search, ShoppingCart, CreditCard, Trash2, CheckCircle, Wifi, WifiOff, RefreshCcw, Home, User, Menu, DollarSign, X, AlertOctagon, TrendingUp, TrendingDown, Lock, ChevronRight, Monitor, Printer, Image as ImageIcon, Package, Copy, Smartphone, FileText, Calendar, Clock, ChevronsLeft } from 'lucide-react';
 import { StorageService } from '../services/storageService';
 import { IProduct, ICartItem, ICustomer, ISettings, ICashRegister, ISale } from '../types';
 import { formatCurrency, Button, Input, ConfirmModal, AlertModal } from '../components/UI';
@@ -39,6 +39,10 @@ export const POS: React.FC = () => {
   const [cashValue, setCashValue] = useState<string>('');
   const [cashReason, setCashReason] = useState<string>('');
   
+  // Payment State
+  const [paymentSubView, setPaymentSubView] = useState<'METHODS' | 'CASH'>('METHODS');
+  const [cashReceived, setCashReceived] = useState<string>('');
+
   // PIX State
   const [pixData, setPixData] = useState<{payload: string, img: string} | null>(null);
   
@@ -55,6 +59,7 @@ export const POS: React.FC = () => {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const cartEndRef = useRef<HTMLDivElement>(null);
+  const cashReceivedInputRef = useRef<HTMLInputElement>(null);
 
   // Load Initial Data
   useEffect(() => {
@@ -64,9 +69,7 @@ export const POS: React.FC = () => {
     
     const currentReg = StorageService.getCurrentRegister();
     setRegister(currentReg);
-    
     if (!currentReg) {
-        // Fetch last closed register info for opening modal context
         const lastClosed = StorageService.getLastClosedRegister();
         setLastClosedRegister(lastClosed);
         setActiveModal('OPEN_BOX');
@@ -85,6 +88,12 @@ export const POS: React.FC = () => {
         cartEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [cart]);
+  
+  useEffect(() => {
+    if (activeModal === 'PAYMENT' && paymentSubView === 'CASH') {
+        cashReceivedInputRef.current?.focus();
+    }
+  }, [activeModal, paymentSubView]);
 
   // Generate QR Code for Receipt when sale is completed
   useEffect(() => {
@@ -182,7 +191,7 @@ export const POS: React.FC = () => {
       }
   };
 
-  const finalizeSale = async (method: 'CREDIT' | 'DEBIT' | 'CASH' | 'PIX') => {
+  const finalizeSale = async (method: 'CREDIT' | 'DEBIT' | 'CASH' | 'PIX', cashData?: { paid: number, change: number}) => {
     if (cart.length === 0) return;
     setProcessing(true);
     
@@ -197,7 +206,9 @@ export const POS: React.FC = () => {
       paymentMethod: method,
       fiscalStatus: isOffline ? 'OFFLINE' : 'AUTHORIZED',
       accessKey: accessKey,
-      customerId: selectedCustomer?.id
+      customerId: selectedCustomer?.id,
+      amountPaid: cashData?.paid,
+      change: cashData?.change,
     });
 
     if (saleData) {
@@ -210,6 +221,8 @@ export const POS: React.FC = () => {
       setSelectedCustomer(null);
       setProcessing(false);
       setPrintType('SALE');
+      setPaymentSubView('METHODS');
+      setCashReceived('');
       setActiveModal('PRINT_RECEIPT'); 
       setPixData(null);
       setReceiptType('NFCE');
@@ -324,7 +337,10 @@ export const POS: React.FC = () => {
                 break;
             case 'F5':
                 e.preventDefault();
-                if (cart.length > 0) setActiveModal('PAYMENT');
+                if (cart.length > 0) {
+                    setPaymentSubView('METHODS');
+                    setActiveModal('PAYMENT');
+                }
                 break;
             case 'F8':
                 e.preventDefault();
@@ -341,6 +357,7 @@ export const POS: React.FC = () => {
                 } else if (activeModal !== 'NONE') {
                     if (activeModal === 'PIX_WAITING') setActiveModal('PAYMENT');
                     else if (activeModal === 'PRINT_RECEIPT') closePrintModal();
+                    else if (activeModal === 'PAYMENT' && paymentSubView === 'CASH') setPaymentSubView('METHODS');
                     else setActiveModal('NONE');
                 } else {
                     searchInputRef.current?.focus();
@@ -353,10 +370,11 @@ export const POS: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeModal, cart, suggestions, printType, confirmState, alertState]);
+  }, [activeModal, cart, suggestions, printType, confirmState, alertState, paymentSubView]);
 
   const total = cart.reduce((acc, item) => acc + item.total, 0);
   const lastItem = cart[cart.length - 1];
+  const changeAmount = parseFloat(cashReceived.replace(',', '.')) - total;
 
   return (
     <div className="h-full flex flex-col bg-slate-900 text-slate-800 font-sans overflow-hidden">
@@ -584,7 +602,11 @@ export const POS: React.FC = () => {
                     </div>
                     <button 
                         disabled={cart.length === 0}
-                        onClick={() => setActiveModal('PAYMENT')}
+                        onClick={() => {
+                            setPaymentSubView('METHODS');
+                            setCashReceived('');
+                            setActiveModal('PAYMENT');
+                        }}
                         className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-2xl font-black uppercase tracking-wide rounded-xl shadow-lg transition-transform active:scale-[0.99] flex items-center justify-center gap-3"
                     >
                         <span>FINALIZAR VENDA (F5)</span>
@@ -798,10 +820,18 @@ export const POS: React.FC = () => {
                                         <span>Forma Pagamento</span>
                                         <span>{lastSale.paymentMethod}</span>
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span>Valor Pago</span>
-                                        <span>{lastSale.total.toFixed(2).replace('.',',')}</span>
-                                    </div>
+                                    {lastSale.paymentMethod === 'CASH' && (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span>Valor Recebido</span>
+                                                <span>{formatCurrency(lastSale.amountPaid || 0)}</span>
+                                            </div>
+                                            <div className="flex justify-between font-bold">
+                                                <span>Troco</span>
+                                                <span>{formatCurrency(lastSale.change || 0)}</span>
+                                            </div>
+                                        </>
+                                    )}
                                     
                                     <hr className="border-dashed border-slate-300 my-2" />
                                     
@@ -921,68 +951,6 @@ export const POS: React.FC = () => {
             </div>
         )}
 
-        {/* GENERIC CASH MODAL */}
-        {(activeModal === 'SANGRIA' || activeModal === 'SUPRIMENTO') && (
-             <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-scaleIn">
-                    <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        {activeModal === 'SANGRIA' ? <TrendingDown className="text-red-500"/> : <TrendingUp className="text-emerald-500"/>}
-                        {activeModal === 'SANGRIA' ? 'Realizar Sangria' : 'Realizar Suprimento'}
-                    </h3>
-                    <div className="space-y-4">
-                        <Input 
-                            label="Valor (R$)"
-                            type="number"
-                            autoFocus
-                            value={cashValue}
-                            onChange={e => setCashValue(e.target.value)}
-                            className="text-lg font-bold"
-                        />
-                        <Input 
-                            label="Motivo / Descrição"
-                            value={cashReason}
-                            onChange={e => setCashReason(e.target.value)}
-                        />
-                    </div>
-                    <div className="mt-6 flex justify-end gap-3">
-                        <Button variant="secondary" onClick={() => setActiveModal('MENU')}>Cancelar</Button>
-                        <Button 
-                            variant={activeModal === 'SANGRIA' ? 'danger' : 'success'} 
-                            onClick={() => handleSangriaSuprimento(activeModal === 'SANGRIA' ? 'BLEED' : 'SUPPLY')}
-                        >
-                            Confirmar
-                        </Button>
-                    </div>
-                </div>
-             </div>
-        )}
-
-        {/* F10 MENU */}
-        {activeModal === 'MENU' && (
-            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden animate-fadeIn">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Menu className="text-blue-600"/> Menu de Funções</h2>
-                        <button onClick={() => setActiveModal('NONE')} className="text-slate-400 hover:text-red-500"><X /></button>
-                    </div>
-                    <div className="p-8 grid grid-cols-2 md:grid-cols-3 gap-6">
-                        <button onClick={() => setActiveModal('SUPRIMENTO')} className="p-6 bg-white hover:bg-emerald-50 rounded-xl flex flex-col items-center gap-3 transition border border-slate-200 hover:border-emerald-500 shadow-sm group">
-                            <div className="p-3 bg-emerald-100 rounded-full text-emerald-600 group-hover:scale-110 transition"><TrendingUp size={32} /></div>
-                            <span className="font-bold text-slate-700 group-hover:text-emerald-800">Suprimento</span>
-                        </button>
-                        <button onClick={() => setActiveModal('SANGRIA')} className="p-6 bg-white hover:bg-red-50 rounded-xl flex flex-col items-center gap-3 transition border border-slate-200 hover:border-red-500 shadow-sm group">
-                             <div className="p-3 bg-red-100 rounded-full text-red-600 group-hover:scale-110 transition"><TrendingDown size={32} /></div>
-                            <span className="font-bold text-slate-700 group-hover:text-red-800">Sangria</span>
-                        </button>
-                        <button onClick={handleCloseRegister} className="p-6 bg-white hover:bg-amber-50 rounded-xl flex flex-col items-center gap-3 transition border border-slate-200 hover:border-amber-500 shadow-sm group">
-                             <div className="p-3 bg-amber-100 rounded-full text-amber-600 group-hover:scale-110 transition"><AlertOctagon size={32} /></div>
-                            <span className="font-bold text-slate-700 group-hover:text-amber-800">Fechar Caixa</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
-
         {/* PAYMENT MODAL */}
         {activeModal === 'PAYMENT' && (
              <div className="fixed inset-0 bg-blue-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-md">
@@ -1006,35 +974,87 @@ export const POS: React.FC = () => {
                             </div>
                         </div>
                         <Button variant="secondary" onClick={() => setActiveModal('NONE')} className="w-full py-4 uppercase font-bold text-slate-500 hover:text-slate-800">
-                            Voltar (ESC)
+                            Cancelar (ESC)
                         </Button>
                     </div>
 
-                    {/* Right: Methods */}
-                    <div className="w-2/3 p-10 bg-white overflow-y-auto">
-                        <h3 className="text-2xl font-bold text-slate-800 mb-8">Como o cliente vai pagar?</h3>
-                        
-                        <div className="grid grid-cols-2 gap-6">
-                            <button onClick={() => finalizeSale('CASH')} className="h-40 bg-white hover:bg-emerald-50 hover:border-emerald-500 border-2 border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-4 transition group shadow-sm hover:shadow-md">
-                                <div className="p-4 bg-emerald-100 rounded-full text-emerald-600 group-hover:scale-110 transition"><DollarSign size={40}/></div>
-                                <span className="font-bold text-xl text-slate-700">Dinheiro</span>
-                            </button>
-                             <button onClick={handlePixPayment} className="h-40 bg-white hover:bg-brand-50 hover:border-brand-500 border-2 border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-4 transition group shadow-sm hover:shadow-md">
-                                <div className="p-4 bg-brand-100 rounded-full text-brand-600 group-hover:scale-110 transition"><Smartphone size={40}/></div>
-                                <span className="font-bold text-xl text-slate-700">PIX</span>
-                            </button>
-                             <button onClick={() => finalizeSale('DEBIT')} className="h-40 bg-white hover:bg-blue-50 hover:border-blue-500 border-2 border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-4 transition group shadow-sm hover:shadow-md">
-                                <div className="p-4 bg-blue-100 rounded-full text-blue-600 group-hover:scale-110 transition"><CreditCard size={40}/></div>
-                                <span className="font-bold text-xl text-slate-700">Débito</span>
-                            </button>
-                             <button onClick={() => finalizeSale('CREDIT')} className="h-40 bg-white hover:bg-purple-50 hover:border-purple-500 border-2 border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-4 transition group shadow-sm hover:shadow-md">
-                                <div className="p-4 bg-purple-100 rounded-full text-purple-600 group-hover:scale-110 transition"><CreditCard size={40}/></div>
-                                <span className="font-bold text-xl text-slate-700">Crédito</span>
-                            </button>
-                        </div>
-                        
+                    {/* Right: Methods / Cash Change */}
+                    <div className="w-2/3 p-10 bg-white overflow-y-auto relative">
+                        {paymentSubView === 'METHODS' && (
+                            <div className="animate-fadeIn">
+                                <h3 className="text-2xl font-bold text-slate-800 mb-8">Como o cliente vai pagar?</h3>
+                                
+                                <div className="grid grid-cols-2 gap-6">
+                                    <button onClick={() => setPaymentSubView('CASH')} className="h-40 bg-white hover:bg-emerald-50 hover:border-emerald-500 border-2 border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-4 transition group shadow-sm hover:shadow-md">
+                                        <div className="p-4 bg-emerald-100 rounded-full text-emerald-600 group-hover:scale-110 transition"><DollarSign size={40}/></div>
+                                        <span className="font-bold text-xl text-slate-700">Dinheiro</span>
+                                    </button>
+                                     <button onClick={handlePixPayment} className="h-40 bg-white hover:bg-brand-50 hover:border-brand-500 border-2 border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-4 transition group shadow-sm hover:shadow-md">
+                                        <div className="p-4 bg-brand-100 rounded-full text-brand-600 group-hover:scale-110 transition"><Smartphone size={40}/></div>
+                                        <span className="font-bold text-xl text-slate-700">PIX</span>
+                                    </button>
+                                     <button onClick={() => finalizeSale('DEBIT')} className="h-40 bg-white hover:bg-blue-50 hover:border-blue-500 border-2 border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-4 transition group shadow-sm hover:shadow-md">
+                                        <div className="p-4 bg-blue-100 rounded-full text-blue-600 group-hover:scale-110 transition"><CreditCard size={40}/></div>
+                                        <span className="font-bold text-xl text-slate-700">Débito</span>
+                                    </button>
+                                     <button onClick={() => finalizeSale('CREDIT')} className="h-40 bg-white hover:bg-purple-50 hover:border-purple-500 border-2 border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-4 transition group shadow-sm hover:shadow-md">
+                                        <div className="p-4 bg-purple-100 rounded-full text-purple-600 group-hover:scale-110 transition"><CreditCard size={40}/></div>
+                                        <span className="font-bold text-xl text-slate-700">Crédito</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {paymentSubView === 'CASH' && (
+                            <div className="animate-fadeIn flex flex-col h-full">
+                                <button onClick={() => setPaymentSubView('METHODS')} className="absolute top-6 left-6 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800">
+                                    <ChevronsLeft size={18}/> Voltar
+                                </button>
+                                <h3 className="text-2xl font-bold text-slate-800 mb-2 text-center">Pagamento em Dinheiro</h3>
+                                <p className="text-center text-slate-500 mb-8">Informe o valor recebido para calcular o troco.</p>
+
+                                <div className="space-y-4 mb-6">
+                                    <Input 
+                                        label="Valor Recebido (R$)"
+                                        type="number"
+                                        value={cashReceived}
+                                        onChange={e => setCashReceived(e.target.value)}
+                                        ref={cashReceivedInputRef}
+                                        className="text-center text-4xl py-4 font-black border-2 border-emerald-200 text-slate-800 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400"
+                                        placeholder="0,00"
+                                    />
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[5, 10, 20, 50, 100, total].map(val => (
+                                            <button 
+                                                key={val}
+                                                onClick={() => setCashReceived(val.toFixed(2).replace('.',','))}
+                                                className="py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-700 font-bold hover:bg-slate-200"
+                                            >
+                                                {val === total ? 'Exato' : `R$ ${val}`}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className={`flex-1 p-6 rounded-xl flex flex-col items-center justify-center text-center transition ${changeAmount >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
+                                    <p className="text-sm font-bold uppercase tracking-wider text-blue-800">Troco</p>
+                                    <p className="text-7xl font-black text-blue-900 tracking-tighter">
+                                        {formatCurrency(changeAmount >= 0 ? changeAmount : 0)}
+                                    </p>
+                                </div>
+
+                                <Button 
+                                    onClick={() => finalizeSale('CASH', { paid: parseFloat(cashReceived.replace(',','.')), change: changeAmount })} 
+                                    disabled={changeAmount < 0 || !cashReceived}
+                                    className="w-full py-5 text-xl font-bold mt-6 bg-emerald-600 hover:bg-emerald-700 shadow-lg"
+                                >
+                                    Confirmar Pagamento
+                                </Button>
+                            </div>
+                        )}
+
                         {processing && (
-                            <div className="mt-8 flex flex-col items-center justify-center gap-3 text-blue-600 animate-pulse font-bold bg-blue-50 p-8 rounded-xl border border-blue-100">
+                            <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center gap-3 text-blue-600 animate-pulse font-bold backdrop-blur-sm">
                                 <RefreshCcw className="animate-spin" size={32} /> 
                                 <span className="text-lg">Processando Pagamento e Emitindo Nota...</span>
                             </div>
@@ -1129,9 +1149,71 @@ export const POS: React.FC = () => {
                  </div>
              </div>
         )}
+        
+        {/* F10 MENU */}
+        {activeModal === 'MENU' && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden animate-fadeIn">
+                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Menu className="text-blue-600"/> Menu de Funções</h2>
+                        <button onClick={() => setActiveModal('NONE')} className="text-slate-400 hover:text-red-500"><X /></button>
+                    </div>
+                    <div className="p-8 grid grid-cols-2 md:grid-cols-3 gap-6">
+                        <button onClick={() => { setActiveModal('SUPRIMENTO'); setCashValue(''); setCashReason(''); }} className="p-6 bg-white hover:bg-emerald-50 rounded-xl flex flex-col items-center gap-3 transition border border-slate-200 hover:border-emerald-500 shadow-sm group">
+                            <div className="p-3 bg-emerald-100 rounded-full text-emerald-600 group-hover:scale-110 transition"><TrendingUp size={32} /></div>
+                            <span className="font-bold text-slate-700 group-hover:text-emerald-800">Suprimento</span>
+                        </button>
+                        <button onClick={() => { setActiveModal('SANGRIA'); setCashValue(''); setCashReason(''); }} className="p-6 bg-white hover:bg-red-50 rounded-xl flex flex-col items-center gap-3 transition border border-slate-200 hover:border-red-500 shadow-sm group">
+                             <div className="p-3 bg-red-100 rounded-full text-red-600 group-hover:scale-110 transition"><TrendingDown size={32} /></div>
+                            <span className="font-bold text-slate-700 group-hover:text-red-800">Sangria</span>
+                        </button>
+                        <button onClick={initCloseRegister} className="p-6 bg-white hover:bg-amber-50 rounded-xl flex flex-col items-center gap-3 transition border border-slate-200 hover:border-amber-500 shadow-sm group">
+                             <div className="p-3 bg-amber-100 rounded-full text-amber-600 group-hover:scale-110 transition"><AlertOctagon size={32} /></div>
+                            <span className="font-bold text-slate-700 group-hover:text-amber-800">Fechar Caixa</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* GENERIC CASH MODAL */}
+        {(activeModal === 'SANGRIA' || activeModal === 'SUPRIMENTO') && (
+             <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-scaleIn">
+                    <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        {activeModal === 'SANGRIA' ? <TrendingDown className="text-red-500"/> : <TrendingUp className="text-emerald-500"/>}
+                        {activeModal === 'SANGRIA' ? 'Realizar Sangria' : 'Realizar Suprimento'}
+                    </h3>
+                    <div className="space-y-4">
+                        <Input 
+                            label="Valor (R$)"
+                            type="number"
+                            autoFocus
+                            value={cashValue}
+                            onChange={e => setCashValue(e.target.value)}
+                            className="text-lg font-bold"
+                        />
+                        <Input 
+                            label="Motivo / Descrição"
+                            value={cashReason}
+                            onChange={e => setCashReason(e.target.value)}
+                        />
+                    </div>
+                    <div className="mt-6 flex justify-end gap-3">
+                        <Button variant="secondary" onClick={() => setActiveModal('MENU')}>Cancelar</Button>
+                        <Button 
+                            variant={activeModal === 'SANGRIA' ? 'danger' : 'success'} 
+                            onClick={() => handleSangriaSuprimento(activeModal === 'SANGRIA' ? 'BLEED' : 'SUPPLY')}
+                        >
+                            Confirmar
+                        </Button>
+                    </div>
+                </div>
+             </div>
+        )}
 
         {/* HIDDEN PRINTABLE AREA FOR BROWSER PRINT */}
-        {(lastSale || closedRegisterData) && (
+        {((lastSale && printType === 'SALE') || (closedRegisterData && printType === 'CLOSING')) && (
             <div id="printable-area" className="hidden">
                  <style>{`
                     #printable-area {
@@ -1152,7 +1234,7 @@ export const POS: React.FC = () => {
                     th, td { padding: 2px 0; }
                  `}</style>
                  {printType === 'SALE' && lastSale ? (
-                    <>
+                     <>
                         <div className="text-center">
                             <h2 className="font-bold uppercase text-xs">{settings.company.fantasyName}</h2>
                             <p>{settings.company.corporateName}</p>
@@ -1199,8 +1281,19 @@ export const POS: React.FC = () => {
                         </div>
                         <div style={{display: 'flex', justifyContent: 'space-between'}}>
                             <span>{lastSale.paymentMethod}</span>
-                            <span>{lastSale.total.toFixed(2).replace('.',',')}</span>
                         </div>
+                        {lastSale.paymentMethod === 'CASH' && (
+                          <>
+                            <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                              <span>VALOR PAGO R$</span>
+                              <span>{(lastSale.amountPaid || 0).toFixed(2).replace('.',',')}</span>
+                            </div>
+                            <div style={{display: 'flex', justifyContent: 'space-between', fontWeight: 'bold'}}>
+                              <span>TROCO R$</span>
+                              <span>{(lastSale.change || 0).toFixed(2).replace('.',',')}</span>
+                            </div>
+                          </>
+                        )}
                         
                         <div className="dashed-line"></div>
                         
@@ -1229,47 +1322,23 @@ export const POS: React.FC = () => {
                             <p>Fonte: IBPT</p>
                             <p style={{marginTop: '5px', fontWeight: 'bold', fontStyle: 'italic'}}>PDV MASTER ERP</p>
                         </div>
-                    </>
+                     </>
                  ) : (
-                    // CLOSING REPORT PRINT
                     closedRegisterData && (
-                        <>
-                            <div className="text-center">
-                                <h2 className="font-bold uppercase text-xs">{settings.company.fantasyName}</h2>
-                                <p>RELATÓRIO DE FECHAMENTO</p>
-                                <p>{new Date().toLocaleString()}</p>
-                                <div className="dashed-line"></div>
-                            </div>
-                            <div>
-                                <p>Caixa: {closedRegisterData.id.slice(0,8)}</p>
-                                <p>Operador: ADMIN</p>
-                                <p>Abertura: {new Date(closedRegisterData.openedAt).toLocaleString()}</p>
-                                <p>Fechamento: {new Date(closedRegisterData.closedAt!).toLocaleString()}</p>
-                            </div>
-                            <div className="dashed-line"></div>
-                            <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                                <span>(+) Fundo Abertura</span>
-                                <span>{closedRegisterData.openingBalance.toFixed(2)}</span>
-                            </div>
-                            <div style={{display: 'flex', justifyContent: 'space-between', fontWeight: 'bold'}}>
-                                <span>(=) Saldo Sistema</span>
-                                <span>{closedRegisterData.currentBalance.toFixed(2)}</span>
-                            </div>
-                            <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                                <span>(=) Saldo Físico</span>
-                                <span>{closedRegisterData.finalCount?.toFixed(2)}</span>
-                            </div>
-                            <div className="dashed-line"></div>
-                            <div style={{display: 'flex', justifyContent: 'space-between', fontWeight: 'bold'}}>
-                                <span>DIFERENÇA (QUEBRA)</span>
-                                <span>{closedRegisterData.difference?.toFixed(2)}</span>
-                            </div>
-                            <div className="dashed-line"></div>
-                            <div className="text-center" style={{marginTop: '20px'}}>
-                                <p>_______________________________</p>
-                                <p>Assinatura do Operador</p>
-                            </div>
-                        </>
+                        <div className="text-center">
+                           <h2 className="font-bold uppercase text-sm">Fechamento de Caixa</h2>
+                           <p>Data: {new Date(closedRegisterData.closedAt!).toLocaleString()}</p>
+                           <p>Operador: ADMIN</p>
+                           <div className="dashed-line"></div>
+                           <div style={{textAlign: 'left'}}>
+                             <p>Saldo Abertura: {formatCurrency(closedRegisterData.openingBalance)}</p>
+                             <p>Saldo Sistema: {formatCurrency(closedRegisterData.currentBalance)}</p>
+                             <p>Saldo Contado: {formatCurrency(closedRegisterData.finalCount || 0)}</p>
+                             <p><strong>Diferença: {formatCurrency(closedRegisterData.difference || 0)}</strong></p>
+                           </div>
+                           <div className="dashed-line"></div>
+                           <p>Assinatura: ________________</p>
+                        </div>
                     )
                  )}
             </div>

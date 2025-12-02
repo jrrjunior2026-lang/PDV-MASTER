@@ -24,6 +24,8 @@ const INITIAL_USERS = [
 ];
 
 const DEFAULT_SETTINGS: ISettings = {
+  // FIX: Added required id property for ISettings type.
+  id: '1',
   company: {
     corporateName: 'Minha Loja LTDA',
     fantasyName: 'PDV MASTER Supermercados',
@@ -51,16 +53,17 @@ const DEFAULT_SETTINGS: ISettings = {
 };
 
 const KEYS = {
-  PRODUCTS: 'varejo_br_products',
-  KARDEX: 'varejo_br_kardex',
-  SALES: 'varejo_br_sales',
-  CUSTOMERS: 'varejo_br_customers',
-  FINANCE: 'varejo_br_finance',
-  SESSION: 'varejo_br_session',
-  SETTINGS: 'varejo_br_settings',
-  CASH_REGISTER: 'varejo_br_cash_register',
-  CASH_TRANSACTIONS: 'varejo_br_cash_transactions',
-  USERS: 'varejo_br_users',
+  PRODUCTS: 'pdv_master_products',
+  KARDEX: 'pdv_master_kardex',
+  SALES: 'pdv_master_sales',
+  CUSTOMERS: 'pdv_master_customers',
+  FINANCE: 'pdv_master_finance',
+  SESSION: 'pdv_master_session',
+  SETTINGS: 'pdv_master_settings',
+  CASH_REGISTER: 'pdv_master_cash_register',
+  CASH_TRANSACTIONS: 'pdv_master_cash_transactions',
+  USERS: 'pdv_master_users',
+  CASH_REGISTER_HISTORY: 'pdv_master_cash_register_history' // New key for history
 };
 
 // Helper to simulate sync delay
@@ -72,6 +75,29 @@ export const StorageService = {
     if (!localStorage.getItem(KEYS.USERS)) {
       localStorage.setItem(KEYS.USERS, JSON.stringify(INITIAL_USERS));
     }
+  },
+
+  getUsers: (): any[] => {
+    StorageService.initUsers();
+    const users = localStorage.getItem(KEYS.USERS);
+    return users ? JSON.parse(users) : INITIAL_USERS;
+  },
+
+  saveUser: (user: any) => {
+    const users = StorageService.getUsers();
+    const index = users.findIndex((u: any) => u.id === user.id);
+    if (index >= 0) {
+      users[index] = user;
+    } else {
+      users.push(user);
+    }
+    localStorage.setItem(KEYS.USERS, JSON.stringify(users));
+  },
+
+  deleteUser: (id: string) => {
+    let users = StorageService.getUsers();
+    users = users.filter((u: any) => u.id !== id);
+    localStorage.setItem(KEYS.USERS, JSON.stringify(users));
   },
 
   login: async (email: string, password: string): Promise<IUser | null> => {
@@ -214,36 +240,32 @@ export const StorageService = {
   },
 
   getLastClosedRegister: (): ICashRegister | null => {
-    const data = localStorage.getItem(KEYS.CASH_REGISTER);
-    if (!data) return null;
-    const register = JSON.parse(data) as ICashRegister;
-    return register.status === 'CLOSED' ? register : null;
+    const history = JSON.parse(localStorage.getItem(KEYS.CASH_REGISTER_HISTORY) || '[]');
+    if (history.length > 0) {
+        return history[history.length - 1];
+    }
+    return null;
   },
 
-  // Calculate detailed summary for the current open register
   getRegisterSummary: () => {
-    const register = StorageService.getCurrentRegister();
-    if (!register) return null;
+      const register = StorageService.getCurrentRegister();
+      if (!register) return null;
+      
+      const txs = JSON.parse(localStorage.getItem(KEYS.CASH_TRANSACTIONS) || '[]').filter((tx: ICashTransaction) => tx.registerId === register.id);
+      
+      const summary = {
+          opening: register.openingBalance,
+          supply: 0, bleed: 0, salesCash: 0, calculated: 0
+      };
 
-    const allTx = JSON.parse(localStorage.getItem(KEYS.CASH_TRANSACTIONS) || '[]') as ICashTransaction[];
-    const currentTx = allTx.filter(tx => tx.registerId === register.id);
+      txs.forEach((tx: ICashTransaction) => {
+          if (tx.type === 'SUPPLY') summary.supply += tx.amount;
+          if (tx.type === 'BLEED') summary.bleed += tx.amount;
+          if (tx.type === 'SALE') summary.salesCash += tx.amount;
+      });
 
-    const summary = {
-      opening: register.openingBalance,
-      supply: 0,
-      bleed: 0,
-      salesCash: 0,
-      calculated: 0
-    };
-
-    currentTx.forEach(tx => {
-      if (tx.type === 'SUPPLY') summary.supply += tx.amount;
-      if (tx.type === 'BLEED') summary.bleed += tx.amount;
-      if (tx.type === 'SALE') summary.salesCash += tx.amount;
-    });
-
-    summary.calculated = summary.opening + summary.supply + summary.salesCash - summary.bleed;
-    return summary;
+      summary.calculated = summary.opening + summary.supply + summary.salesCash - summary.bleed;
+      return summary;
   },
 
   openRegister: (openingBalance: number, operatorId: string) => {
@@ -267,11 +289,10 @@ export const StorageService = {
     return register;
   },
 
-  closeRegister: (userCountedAmount: number) => {
+  closeRegister: (userCountedAmount: number): ICashRegister | undefined => {
     const register = StorageService.getCurrentRegister();
     if (!register) return;
-    
-    // Get summary to check data integrity
+
     const summary = StorageService.getRegisterSummary();
     const systemBalance = summary ? summary.calculated : register.currentBalance;
 
@@ -279,20 +300,24 @@ export const StorageService = {
     register.closedAt = new Date().toISOString();
     register.finalCount = userCountedAmount;
     register.difference = userCountedAmount - systemBalance;
+    register.currentBalance = systemBalance;
+
+    // Move to history
+    const history = JSON.parse(localStorage.getItem(KEYS.CASH_REGISTER_HISTORY) || '[]');
+    history.push(register);
+    localStorage.setItem(KEYS.CASH_REGISTER_HISTORY, JSON.stringify(history));
+
+    // Clear current register
+    localStorage.removeItem(KEYS.CASH_REGISTER);
     
-    // Update Register Entity
-    localStorage.setItem(KEYS.CASH_REGISTER, JSON.stringify(register));
-    
-    // Log the Closing Transaction (Using system balance for continuity, but Register object has the real count)
     StorageService.addCashTransaction({
       id: crypto.randomUUID(),
       registerId: register.id,
       type: 'CLOSING',
       amount: systemBalance,
-      description: `Fechamento de Caixa. Físico: ${userCountedAmount.toFixed(2)} / Dif: ${register.difference.toFixed(2)}`,
+      description: `Fechamento. Contado: ${userCountedAmount}`,
       date: new Date().toISOString()
     });
-
     return register;
   },
 
@@ -304,7 +329,8 @@ export const StorageService = {
     // Update Register Balance if open
     const register = StorageService.getCurrentRegister();
     if (register && register.id === tx.registerId) {
-       if (tx.type === 'SUPPLY' || tx.type === 'SALE' || tx.type === 'OPENING') {
+       // This logic is now redundant because of getRegisterSummary but kept for potential realtime display
+       if (tx.type === 'SUPPLY' || tx.type === 'SALE') {
           register.currentBalance += tx.amount;
        } else if (tx.type === 'BLEED') {
           register.currentBalance -= tx.amount;
@@ -350,18 +376,39 @@ export const StorageService = {
     StorageService.addFinancialRecord(record);
 
     // Update Cash Register
-    const register = StorageService.getCurrentRegister();
-    if (register && sale.paymentMethod === 'CASH') {
-        StorageService.addCashTransaction({
-            id: crypto.randomUUID(),
-            registerId: register.id,
-            type: 'SALE',
-            amount: sale.total,
-            description: `Venda ${sale.id.slice(0,8)}`,
-            date: new Date().toISOString()
-        });
+    if (sale.paymentMethod === 'CASH') {
+        const register = StorageService.getCurrentRegister();
+        if (register) {
+            StorageService.addCashTransaction({
+                id: crypto.randomUUID(),
+                registerId: register.id,
+                type: 'SALE',
+                amount: sale.total,
+                description: `Venda ${sale.id.slice(0,8)}`,
+                date: new Date().toISOString()
+            });
+        }
     }
 
     return sale;
+  },
+
+  // Report-specific getters
+  getSalesByPeriod(start: Date, end: Date): ISale[] {
+    const sales = this.getSales();
+    return sales.filter(s => {
+      const saleDate = new Date(s.date);
+      return saleDate >= start && saleDate <= end;
+    });
+  },
+
+  getClosedRegisters(): ICashRegister[] {
+    const history = localStorage.getItem(KEYS.CASH_REGISTER_HISTORY);
+    return history ? JSON.parse(history) : [];
+  },
+
+  getAllCashTransactions(): ICashTransaction[] {
+    const txs = localStorage.getItem(KEYS.CASH_TRANSACTIONS);
+    return txs ? JSON.parse(txs) : [];
   }
 };

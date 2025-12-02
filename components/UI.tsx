@@ -18,15 +18,19 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
   );
 };
 
-export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label?: string }> = ({ label, className = '', ...props }) => (
+// FIX: Wrapped Input component with React.forwardRef to allow passing refs to the underlying input element.
+export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { label?: string }>(({ label, className = '', ...props }, ref) => (
   <div className="flex flex-col gap-1 w-full">
     {label && <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</label>}
     <input 
+      ref={ref}
       className={`border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-colors ${className}`}
       {...props} 
     />
   </div>
-);
+));
+Input.displayName = "Input";
+
 
 export const Card: React.FC<{ children: React.ReactNode, title?: string, className?: string }> = ({ children, title, className = '' }) => (
   <div className={`bg-white p-6 rounded-xl shadow-sm border border-slate-200 ${className}`}>

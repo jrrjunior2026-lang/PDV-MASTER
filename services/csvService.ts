@@ -1,8 +1,9 @@
 
+
 import { IProduct } from "../types";
 
 // Headers definition for the CSV file
-const HEADERS = [
+const PRODUCT_HEADERS = [
   { label: 'CODIGO_BARRAS', key: 'code' },
   { label: 'NOME_PRODUTO', key: 'name' },
   { label: 'PRECO_VENDA', key: 'price' },
@@ -17,17 +18,42 @@ const HEADERS = [
 ];
 
 export const CsvService = {
+
+  exportToCsv: (data: any[], headers: {label: string, key: string}[], filename: string) => {
+    if (data.length === 0) return;
+
+    const headerRow = headers.map(h => h.label).join(';');
+    const dataRows = data.map(row => 
+        headers.map(h => {
+            let val = row[h.key];
+            if (val === undefined || val === null) val = '';
+            if (typeof val === 'number') return val.toString().replace('.', ',');
+            if (typeof val === 'string') return `"${val.replace(/"/g, '""')}"`;
+            return val;
+        }).join(';')
+    );
+
+    const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  },
   
   /**
    * Generates a CSV file and triggers download
    */
   exportProducts: (products: IProduct[]) => {
     // 1. Create Header Row
-    const headerRow = HEADERS.map(h => h.label).join(';');
+    const headerRow = PRODUCT_HEADERS.map(h => h.label).join(';');
     
     // 2. Create Data Rows
     const dataRows = products.map(p => {
-      return HEADERS.map(h => {
+      return PRODUCT_HEADERS.map(h => {
         const val = p[h.key as keyof IProduct];
         // Handle undefined/null
         if (val === undefined || val === null) return '';
@@ -56,7 +82,7 @@ export const CsvService = {
    * Generates a template file
    */
   downloadTemplate: () => {
-    const headerRow = HEADERS.map(h => h.label).join(';');
+    const headerRow = PRODUCT_HEADERS.map(h => h.label).join(';');
     const exampleRow = "789000000000;PRODUTO EXEMPLO;10,00;5,00;100;10;UN;0000.00.00;00.000.00;0;A";
     const csvContent = '\uFEFF' + [headerRow, exampleRow].join('\n');
     
@@ -93,11 +119,11 @@ export const CsvService = {
         for (let i = 1; i < cleanLines.length; i++) {
           const currentLine = cleanLines[i].split(';');
           // Skip malformed lines
-          if (currentLine.length < HEADERS.length) continue;
+          if (currentLine.length < PRODUCT_HEADERS.length) continue;
 
           const product: any = { id: crypto.randomUUID() }; // Generate temporary ID
           
-          HEADERS.forEach((h, index) => {
+          PRODUCT_HEADERS.forEach((h, index) => {
             const rawValue = currentLine[index]?.trim();
             
             // Map Value based on type

@@ -1,6 +1,8 @@
+
+
 import React from 'react';
-import { LayoutDashboard, ShoppingCart, Package, Users, FileText, Settings, LogOut, Menu } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, ShoppingCart, Package, Users, FileText, Settings, LogOut, Menu, ClipboardList } from 'lucide-react';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { StorageService } from '../services/storageService';
 
 const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string; active: boolean }> = ({ to, icon, label, active }) => (
@@ -10,11 +12,9 @@ const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string; acti
   </Link>
 );
 
-export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const Layout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const isPos = location.pathname === '/pos';
-  const isLogin = location.pathname === '/login';
   const user = StorageService.getCurrentUser();
   const settings = StorageService.getSettings();
 
@@ -22,11 +22,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     StorageService.logout();
     navigate('/login');
   };
-
-  // Fullscreen modes
-  if (isPos || isLogin) {
-    return <div className="h-screen w-screen overflow-hidden">{children}</div>;
-  }
 
   return (
     <div className="flex h-screen bg-slate-50">
@@ -58,6 +53,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <>
               <NavItem to="/inventory" active={location.pathname === '/inventory'} icon={<Package size={20}/>} label="Estoque & Kardex" />
               <NavItem to="/finance" active={location.pathname === '/finance'} icon={<FileText size={20}/>} label="Financeiro" />
+              <NavItem to="/reports" active={location.pathname === '/reports'} icon={<ClipboardList size={20}/>} label="Relatórios" />
               <NavItem to="/crm" active={location.pathname === '/crm'} icon={<Users size={20}/>} label="Clientes & CRM" />
             </>
           )}
@@ -91,7 +87,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
         </header>
         <div className="flex-1 overflow-auto p-6">
-          {children}
+          <Outlet />
         </div>
       </main>
     </div>

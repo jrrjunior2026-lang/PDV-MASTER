@@ -69,8 +69,10 @@ export const Inventory: React.FC = () => {
   }, []);
 
   const refreshData = () => {
-    setProducts(StorageService.getProducts());
-    setKardex(StorageService.getKardex().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    const p = StorageService.getProducts();
+    const k = StorageService.getKardex();
+    setProducts(p);
+    setKardex(k.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
   };
 
   const handleAudit = async () => {

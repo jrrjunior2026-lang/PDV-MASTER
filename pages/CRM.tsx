@@ -48,7 +48,7 @@ export const CRM: React.FC = () => {
     // Dummy implementation for direct AI call inside component for simplicity in this demo context
     // Ideally this goes to GeminiService
     setGeneratingPromo(false);
-    setAiPromo(`Olá ${customerName}! 🌟 Notamos que você adora nossas promoções. Que tal conferir as ofertas de Arroz e Feijão hoje? Venha para o VarejoBR!`);
+    setAiPromo(`Olá ${customerName}! 🌟 Notamos que você adora nossas promoções. Que tal conferir as ofertas de Arroz e Feijão hoje? Venha para o PDV MASTER!`);
   };
 
   return (

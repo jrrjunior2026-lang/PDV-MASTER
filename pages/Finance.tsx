@@ -10,8 +10,13 @@ export const Finance: React.FC = () => {
   const [newRec, setNewRec] = useState<Partial<IFinancialRecord>>({ type: 'EXPENSE', status: 'PENDING' });
 
   useEffect(() => {
-    setRecords(StorageService.getFinancialRecords().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    refreshData();
   }, []);
+
+  const refreshData = () => {
+    const data = StorageService.getFinancialRecords();
+    setRecords(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  };
 
   const handleSave = () => {
     if (!newRec.description || !newRec.amount) return;
@@ -25,7 +30,7 @@ export const Finance: React.FC = () => {
       status: newRec.status as any
     };
     StorageService.addFinancialRecord(record);
-    setRecords(StorageService.getFinancialRecords().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    refreshData();
     setShowModal(false);
     setNewRec({ type: 'EXPENSE', status: 'PENDING' });
   };
