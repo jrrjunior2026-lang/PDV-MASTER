@@ -1,0 +1,239 @@
+import React, { useState, useEffect } from 'react';
+import { StorageService } from '../services/storageService';
+import { ISettings } from '../types';
+import { Button, Input, Card, AlertModal } from '../components/UI';
+import { Building2, FileCheck, CreditCard, Palette, Save, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
+
+export const Settings: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'COMPANY' | 'FISCAL' | 'PAYMENT' | 'APPEARANCE'>('COMPANY');
+  const [settings, setSettings] = useState<ISettings>(StorageService.getSettings());
+  const [loading, setLoading] = useState(false);
+  const [alertState, setAlertState] = useState<{isOpen: boolean, title: string, message: string, type: 'info'|'error'|'success'}>({
+      isOpen: false, title: '', message: '', type: 'info'
+  });
+
+  const showAlert = (message: string, title: string = 'Atenção', type: 'info'|'error'|'success' = 'info') => {
+      setAlertState({ isOpen: true, message, title, type });
+  };
+
+  const handleSave = () => {
+    setLoading(true);
+    // Simulate async save
+    setTimeout(() => {
+        StorageService.saveSettings(settings);
+        setLoading(false);
+        showAlert('Configurações salvas com sucesso!', 'Sucesso', 'success');
+    }, 600);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        if (file.size > 2048 * 1024) { // 2MB limit
+            showAlert('A imagem é muito grande. O limite é 2MB.', 'Erro', 'error');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setSettings(prev => ({
+                ...prev,
+                appearance: { ...prev.appearance, logoUrl: reader.result as string }
+            }));
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
+  const tabs = [
+    { id: 'COMPANY', label: 'Empresa', icon: <Building2 size={20}/> },
+    { id: 'FISCAL', label: 'Fiscal (NFC-e)', icon: <FileCheck size={20}/> },
+    { id: 'PAYMENT', label: 'Pagamentos', icon: <CreditCard size={20}/> },
+    { id: 'APPEARANCE', label: 'Visual & PDV', icon: <Palette size={20}/> },
+  ];
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+        
+        <AlertModal 
+            isOpen={alertState.isOpen}
+            onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
+            title={alertState.title}
+            message={alertState.message}
+            type={alertState.type}
+        />
+
+        <div className="flex justify-between items-center">
+            <div>
+                <h1 className="text-2xl font-bold text-slate-800">Configurações do Sistema</h1>
+                <p className="text-slate-500">Gerencie dados da empresa, emissão fiscal e personalização.</p>
+            </div>
+            <Button onClick={handleSave} disabled={loading} className="gap-2">
+                <Save size={18} /> {loading ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Sidebar Navigation */}
+            <div className="md:col-span-1 space-y-2">
+                {tabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+                            activeTab === tab.id 
+                            ? 'bg-brand-50 text-brand-700 border border-brand-200 shadow-sm' 
+                            : 'bg-white text-slate-600 hover:bg-slate-50 border border-transparent'
+                        }`}
+                    >
+                        {tab.icon}
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Content Area */}
+            <div className="md:col-span-3">
+                <Card>
+                    {activeTab === 'COMPANY' && (
+                        <div className="space-y-5 animate-fadeIn">
+                            <h3 className="text-lg font-bold border-b border-slate-100 pb-2">Dados da Empresa</h3>
+                            <div className="grid grid-cols-1 gap-4">
+                                <Input label="Razão Social" value={settings.company.corporateName} onChange={e => setSettings({...settings, company: {...settings.company, corporateName: e.target.value}})} />
+                                <Input label="Nome Fantasia" value={settings.company.fantasyName} onChange={e => setSettings({...settings, company: {...settings.company, fantasyName: e.target.value}})} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="CNPJ" value={settings.company.cnpj} onChange={e => setSettings({...settings, company: {...settings.company, cnpj: e.target.value}})} placeholder="00.000.000/0000-00" />
+                                <Input label="Inscrição Estadual (IE)" value={settings.company.ie} onChange={e => setSettings({...settings, company: {...settings.company, ie: e.target.value}})} />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-500 uppercase">Regime Tributário</label>
+                                <select 
+                                    className="border border-slate-300 rounded-md p-2 bg-white"
+                                    value={settings.company.taxRegime}
+                                    onChange={e => setSettings({...settings, company: {...settings.company, taxRegime: e.target.value as any}})}
+                                >
+                                    <option value="1">1 - Simples Nacional</option>
+                                    <option value="3">3 - Regime Normal</option>
+                                </select>
+                            </div>
+                            <Input label="Endereço Completo" value={settings.company.address} onChange={e => setSettings({...settings, company: {...settings.company, address: e.target.value}})} />
+                            <Input label="Telefone" value={settings.company.phone} onChange={e => setSettings({...settings, company: {...settings.company, phone: e.target.value}})} />
+                        </div>
+                    )}
+
+                    {activeTab === 'FISCAL' && (
+                        <div className="space-y-5 animate-fadeIn">
+                            <h3 className="text-lg font-bold border-b border-slate-100 pb-2 flex items-center gap-2">
+                                <FileCheck className="text-brand-600"/> Configuração NFC-e
+                            </h3>
+                            <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 text-sm text-amber-800 mb-4">
+                                <p className="font-bold">⚠️ Atenção</p>
+                                <p>Certifique-se de usar o CSC (Código de Segurança do Contribuinte) correto obtido no portal da SEFAZ do seu estado.</p>
+                            </div>
+                            
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-500 uppercase">Ambiente de Emissão</label>
+                                <select 
+                                    className="border border-slate-300 rounded-md p-2 bg-white font-medium"
+                                    value={settings.fiscal.environment}
+                                    onChange={e => setSettings({...settings, fiscal: {...settings.fiscal, environment: e.target.value as any}})}
+                                >
+                                    <option value="2">Homologação (Testes)</option>
+                                    <option value="1">Produção (Validade Jurídica)</option>
+                                </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Série NFC-e" type="number" value={settings.fiscal.nfceSeries} onChange={e => setSettings({...settings, fiscal: {...settings.fiscal, nfceSeries: parseInt(e.target.value)}})} />
+                                <Input label="ID do CSC (Token ID)" value={settings.fiscal.cscId} onChange={e => setSettings({...settings, fiscal: {...settings.fiscal, cscId: e.target.value}})} placeholder="Ex: 000001" />
+                            </div>
+                            <Input label="Código CSC (Token)" value={settings.fiscal.cscToken} onChange={e => setSettings({...settings, fiscal: {...settings.fiscal, cscToken: e.target.value}})} placeholder="Ex: A1B2C3D4..." />
+                        </div>
+                    )}
+
+                    {activeTab === 'PAYMENT' && (
+                        <div className="space-y-5 animate-fadeIn">
+                            <h3 className="text-lg font-bold border-b border-slate-100 pb-2">Configurações de Recebimento</h3>
+                            
+                            <div className="space-y-4">
+                                <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                                    <div className="w-6 h-6 bg-brand-600 rounded flex items-center justify-center text-white text-xs font-bold">PIX</div>
+                                    Chave Pix Principal
+                                </h4>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="flex flex-col gap-1 col-span-1">
+                                        <label className="text-xs font-semibold text-slate-500 uppercase">Tipo de Chave</label>
+                                        <select 
+                                            className="border border-slate-300 rounded-md p-2 bg-white"
+                                            value={settings.payment.pixKeyType}
+                                            onChange={e => setSettings({...settings, payment: {...settings.payment, pixKeyType: e.target.value as any}})}
+                                        >
+                                            <option value="CNPJ">CNPJ</option>
+                                            <option value="CPF">CPF</option>
+                                            <option value="EMAIL">E-mail</option>
+                                            <option value="PHONE">Telefone</option>
+                                            <option value="RANDOM">Aleatória</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <Input label="Chave Pix" value={settings.payment.pixKey} onChange={e => setSettings({...settings, payment: {...settings.payment, pixKey: e.target.value}})} />
+                                    </div>
+                                </div>
+                                <p className="text-xs text-slate-500">Esta chave será utilizada para gerar o QR Code no PDV.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'APPEARANCE' && (
+                        <div className="space-y-5 animate-fadeIn">
+                            <h3 className="text-lg font-bold border-b border-slate-100 pb-2">Personalização Visual</h3>
+                            
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Logomarca da Empresa</label>
+                                <div className="flex items-start gap-6">
+                                    <div className="w-40 h-40 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center bg-slate-50 overflow-hidden relative">
+                                        {settings.appearance.logoUrl ? (
+                                            <img src={settings.appearance.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                        ) : (
+                                            <div className="text-slate-400 flex flex-col items-center">
+                                                <ImageIcon size={32} className="mb-2"/>
+                                                <span className="text-xs">Sem Logo</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 space-y-3">
+                                        <div className="relative">
+                                            <input 
+                                                type="file" 
+                                                id="logo-upload" 
+                                                className="hidden" 
+                                                accept="image/png, image/jpeg"
+                                                onChange={handleLogoUpload}
+                                            />
+                                            <label htmlFor="logo-upload" className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium transition">
+                                                <Upload size={18}/> Carregar Imagem
+                                            </label>
+                                        </div>
+                                        {settings.appearance.logoUrl && (
+                                            <button 
+                                                onClick={() => setSettings(prev => ({...prev, appearance: {...prev.appearance, logoUrl: null}}))}
+                                                className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-md transition text-sm font-medium"
+                                            >
+                                                <Trash2 size={16}/> Remover Logo
+                                            </button>
+                                        )}
+                                        <p className="text-xs text-slate-500">
+                                            Recomendado: PNG ou JPG com fundo transparente. Máx 2MB.<br/>
+                                            Esta imagem aparecerá como marca d'água no fundo do carrinho do PDV.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </Card>
+            </div>
+        </div>
+    </div>
+  );
+};

@@ -1,0 +1,7 @@
+{
+  "name": "PDV MASTER ERP",
+  "description": "Sistema ERP PDV MASTER completo para varejo brasileiro com PDV fiscal , controle de estoque (Kardex), financeiro e inteligência artificial via Gemini.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
