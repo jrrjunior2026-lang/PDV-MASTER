@@ -1,68 +1,76 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
-    <title>PDV MASTER ERP</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              brand: {
-                50: '#f0f9ff',
-                100: '#e0f2fe',
-                500: '#0ea5e9',
-                600: '#0284c7',
-                700: '#0369a1',
-                900: '#0c4a6e',
-              }
-            },
-            screens: {
-              'print': {'raw': 'print'},
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+  <title>PDV MASTER ERP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              900: '#0c4a6e',
             }
+          },
+          screens: {
+            'print': { 'raw': 'print' },
           }
         }
       }
-    </script>
-    <style>
-      /* Custom Scrollbar for heavy data tables */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar for heavy data tables */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Thermal Printer Label Settings */
+    @media print {
+      @page {
+        size: auto;
+        margin: 0mm;
       }
-      ::-webkit-scrollbar-track {
-        background: #f1f1f1;
+
+      body * {
+        visibility: hidden;
       }
-      ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
+
+      #printable-area,
+      #printable-area * {
+        visibility: visible;
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
+
+      #printable-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
       }
-      
-      /* Thermal Printer Label Settings */
-      @media print {
-        @page {
-          size: auto; 
-          margin: 0mm;
-        }
-        body * {
-          visibility: hidden;
-        }
-        #printable-area, #printable-area * {
-          visibility: visible;
-        }
-        #printable-area {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-        }
-      }
-    </style>
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -79,7 +87,10 @@
 }
 </script>
 </head>
-  <body class="bg-gray-50 text-slate-800 antialiased overflow-hidden">
-    <div id="root"></div>
-  </body>
+
+<body class="bg-gray-50 text-slate-800 antialiased overflow-hidden">
+  <div id="root"></div>
+  <script type="module" src="./index.tsx"></script>
+</body>
+
 </html>

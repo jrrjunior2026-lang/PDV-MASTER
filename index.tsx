@@ -1,6 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import SyncService from './services/syncService';
+
+// Initialize services
+SyncService.init();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

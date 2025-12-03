@@ -1,5 +1,6 @@
 import { IProduct, IKardexEntry, ISale, TransactionType, ICustomer, IFinancialRecord, IUser, ISettings, ICashRegister, ICashTransaction } from '../types';
 import { AuditService } from './auditService'; // Import Audit
+import bcrypt from 'bcryptjs';
 
 // --- INITIAL SEED DATA ---
 const INITIAL_PRODUCTS: IProduct[] = [
@@ -97,31 +98,64 @@ const SafeStorage = {
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export const StorageService = {
-  // Auth
-  initUsers: () => {
+  // Auth - Security enhanced with bcrypt
+  initUsers: async () => {
     if (!SafeStorage.getItem(KEYS.USERS)) {
-      SafeStorage.setItem(KEYS.USERS, JSON.stringify(INITIAL_USERS));
+      // Hash initial passwords
+      const hashedUsers = await Promise.all(INITIAL_USERS.map(async (user) => ({
+        ...user,
+        password: await bcrypt.hash(user.password, 12)
+      })));
+      SafeStorage.setItem(KEYS.USERS, JSON.stringify(hashedUsers));
+    } else {
+      // Migrate plain text passwords to hashed if any exist
+      await StorageService.migratePasswords();
+    }
+  },
+
+  migratePasswords: async () => {
+    const users = JSON.parse(SafeStorage.getItem(KEYS.USERS) || '[]');
+    let needsUpdate = false;
+
+    for (const user of users) {
+      // Check if password is not hashed (plain text passwords are typically short and don't start with bcrypt hash)
+      if (user.password && user.password.length < 60 && !user.password.startsWith('$2a$')) {
+        console.log(`Migrating password for user: ${user.email}`);
+        user.password = await bcrypt.hash(user.password, 12);
+        needsUpdate = true;
+      }
+    }
+
+    if (needsUpdate) {
+      SafeStorage.setItem(KEYS.USERS, JSON.stringify(users));
+      console.log('Password migration completed');
     }
   },
 
   getUsers: (): any[] => {
-    StorageService.initUsers();
     const users = SafeStorage.getItem(KEYS.USERS);
-    return users ? JSON.parse(users) : INITIAL_USERS;
+    return users ? JSON.parse(users) : [];
   },
 
-  saveUser: (user: any) => {
+  saveUser: async (userData: any) => {
     const users = StorageService.getUsers();
-    const index = users.findIndex((u: any) => u.id === user.id);
+    const index = users.findIndex((u: any) => u.id === userData.id);
     let action = 'Criou';
+
+    // Hash password if provided and not already hashed
+    if (userData.password && !userData.password.startsWith('$2a$')) {
+      userData.password = await bcrypt.hash(userData.password, 12);
+    }
+
     if (index >= 0) {
-      users[index] = user;
+      users[index] = { ...users[index], ...userData };
       action = 'Editou';
     } else {
-      users.push(user);
+      users.push({ ...userData, id: crypto.randomUUID() });
     }
+
     SafeStorage.setItem(KEYS.USERS, JSON.stringify(users));
-    AuditService.log('USER_MGMT', `${action} usuário: ${user.name} (${user.role})`, 'WARNING');
+    AuditService.log('USER_MGMT', `${action} usuário: ${userData.name} (${userData.role})`, 'WARNING');
   },
 
   deleteUser: (id: string) => {
@@ -133,24 +167,24 @@ export const StorageService = {
   },
 
   login: async (email: string, password: string): Promise<IUser | null> => {
-    StorageService.initUsers();
+    await StorageService.initUsers();
     await delay(300);
-    
-    const users = StorageService.getUsers();
-    const user = users.find((u: any) => u.email === email && u.password === password);
 
-    if (user) {
-      const { password, ...safeUser } = user;
+    const users = StorageService.getUsers();
+    const user = users.find((u: any) => u.email === email);
+
+    if (user && await bcrypt.compare(password, user.password)) {
+      const { password: _, ...safeUser } = user;
       SafeStorage.setItem(KEYS.SESSION, JSON.stringify(safeUser));
       AuditService.log('LOGIN', `Acesso realizado: ${safeUser.name}`, 'INFO', safeUser);
       return safeUser;
     }
     return null;
   },
-  
+
   logout: () => {
     const user = StorageService.getCurrentUser();
-    if(user) AuditService.log('LOGOUT', `Saída do sistema: ${user.name}`, 'INFO');
+    if (user) AuditService.log('LOGOUT', `Saída do sistema: ${user.name}`, 'INFO');
     SafeStorage.removeItem(KEYS.SESSION);
   },
 
@@ -175,7 +209,7 @@ export const StorageService = {
     const data = SafeStorage.getItem(KEYS.PRODUCTS);
     return data ? JSON.parse(data) : INITIAL_PRODUCTS;
   },
-  
+
   saveProduct: (product: IProduct) => {
     const products = StorageService.getProducts();
     const index = products.findIndex(p => p.id === product.id);
@@ -193,12 +227,12 @@ export const StorageService = {
   saveProductsBatch: (newProducts: IProduct[]) => {
     const products = StorageService.getProducts();
     newProducts.forEach(np => {
-        const idx = products.findIndex(p => p.code === np.code);
-        if (idx >= 0) {
-            products[idx] = { ...products[idx], ...np, id: products[idx].id }; 
-        } else {
-            products.push(np);
-        }
+      const idx = products.findIndex(p => p.code === np.code);
+      if (idx >= 0) {
+        products[idx] = { ...products[idx], ...np, id: products[idx].id };
+      } else {
+        products.push(np);
+      }
     });
     SafeStorage.setItem(KEYS.PRODUCTS, JSON.stringify(products));
     AuditService.log('STOCK_UPDATE', `Importação em lote: ${newProducts.length} produtos processados`, 'WARNING');
@@ -207,7 +241,7 @@ export const StorageService = {
   updateStock: (productId: string, qtyDelta: number, type: TransactionType, docRef: string, desc: string) => {
     const products = StorageService.getProducts();
     const product = products.find(p => p.id === productId);
-    
+
     if (!product) throw new Error("Product not found");
 
     const oldStock = product.stock;
@@ -228,14 +262,14 @@ export const StorageService = {
       documentRef: docRef,
       description: desc
     };
-    
+
     const kardex = StorageService.getKardex();
     kardex.push(entry);
     SafeStorage.setItem(KEYS.KARDEX, JSON.stringify(kardex));
-    
+
     // Log manual adjustments explicitly
     if (type === TransactionType.ADJUSTMENT) {
-        AuditService.log('STOCK_UPDATE', `Ajuste manual: ${product.name} (${qtyDelta > 0 ? '+' : ''}${qtyDelta}). Motivo: ${desc}`, 'WARNING');
+      AuditService.log('STOCK_UPDATE', `Ajuste manual: ${product.name} (${qtyDelta > 0 ? '+' : ''}${qtyDelta}). Motivo: ${desc}`, 'WARNING');
     }
   },
 
@@ -285,30 +319,30 @@ export const StorageService = {
   getLastClosedRegister: (): ICashRegister | null => {
     const history = JSON.parse(SafeStorage.getItem(KEYS.CASH_REGISTER_HISTORY) || '[]');
     if (history.length > 0) {
-        return history[history.length - 1];
+      return history[history.length - 1];
     }
     return null;
   },
 
   getRegisterSummary: () => {
-      const register = StorageService.getCurrentRegister();
-      if (!register) return null;
-      
-      const txs = JSON.parse(SafeStorage.getItem(KEYS.CASH_TRANSACTIONS) || '[]').filter((tx: ICashTransaction) => tx.registerId === register.id);
-      
-      const summary = {
-          opening: register.openingBalance,
-          supply: 0, bleed: 0, salesCash: 0, calculated: 0
-      };
+    const register = StorageService.getCurrentRegister();
+    if (!register) return null;
 
-      txs.forEach((tx: ICashTransaction) => {
-          if (tx.type === 'SUPPLY') summary.supply += tx.amount;
-          if (tx.type === 'BLEED') summary.bleed += tx.amount;
-          if (tx.type === 'SALE') summary.salesCash += tx.amount;
-      });
+    const txs = JSON.parse(SafeStorage.getItem(KEYS.CASH_TRANSACTIONS) || '[]').filter((tx: ICashTransaction) => tx.registerId === register.id);
 
-      summary.calculated = summary.opening + summary.supply + summary.salesCash - summary.bleed;
-      return summary;
+    const summary = {
+      opening: register.openingBalance,
+      supply: 0, bleed: 0, salesCash: 0, calculated: 0
+    };
+
+    txs.forEach((tx: ICashTransaction) => {
+      if (tx.type === 'SUPPLY') summary.supply += tx.amount;
+      if (tx.type === 'BLEED') summary.bleed += tx.amount;
+      if (tx.type === 'SALE') summary.salesCash += tx.amount;
+    });
+
+    summary.calculated = summary.opening + summary.supply + summary.salesCash - summary.bleed;
+    return summary;
   },
 
   openRegister: (openingBalance: number, operatorId: string) => {
@@ -354,7 +388,7 @@ export const StorageService = {
 
     // Clear current register
     SafeStorage.removeItem(KEYS.CASH_REGISTER);
-    
+
     StorageService.addCashTransaction({
       id: crypto.randomUUID(),
       registerId: register.id,
@@ -377,12 +411,12 @@ export const StorageService = {
 
     const register = StorageService.getCurrentRegister();
     if (register && register.id === tx.registerId) {
-       if (tx.type === 'SUPPLY' || tx.type === 'SALE') {
-          register.currentBalance += tx.amount;
-       } else if (tx.type === 'BLEED') {
-          register.currentBalance -= tx.amount;
-       }
-       SafeStorage.setItem(KEYS.CASH_REGISTER, JSON.stringify(register));
+      if (tx.type === 'SUPPLY' || tx.type === 'SALE') {
+        register.currentBalance += tx.amount;
+      } else if (tx.type === 'BLEED') {
+        register.currentBalance -= tx.amount;
+      }
+      SafeStorage.setItem(KEYS.CASH_REGISTER, JSON.stringify(register));
     }
   },
 
@@ -401,10 +435,10 @@ export const StorageService = {
     // Update stock for each item
     sale.items.forEach(item => {
       StorageService.updateStock(
-        item.id, 
-        -item.qty, 
-        TransactionType.SALE, 
-        sale.id, 
+        item.id,
+        -item.qty,
+        TransactionType.SALE,
+        sale.id,
         `Venda PDV #${sale.id.slice(0, 8)}`
       );
     });
@@ -412,7 +446,7 @@ export const StorageService = {
     const record: IFinancialRecord = {
       id: crypto.randomUUID(),
       type: 'INCOME',
-      description: `Venda PDV #${sale.id.slice(0,8)}`,
+      description: `Venda PDV #${sale.id.slice(0, 8)}`,
       amount: sale.total,
       category: 'Vendas',
       date: sale.date,
@@ -422,20 +456,20 @@ export const StorageService = {
     StorageService.addFinancialRecord(record);
 
     if (sale.paymentMethod === 'CASH') {
-        const register = StorageService.getCurrentRegister();
-        if (register) {
-            StorageService.addCashTransaction({
-                id: crypto.randomUUID(),
-                registerId: register.id,
-                type: 'SALE',
-                amount: sale.total,
-                description: `Venda ${sale.id.slice(0,8)}`,
-                date: new Date().toISOString()
-            });
-        }
+      const register = StorageService.getCurrentRegister();
+      if (register) {
+        StorageService.addCashTransaction({
+          id: crypto.randomUUID(),
+          registerId: register.id,
+          type: 'SALE',
+          amount: sale.total,
+          description: `Venda ${sale.id.slice(0, 8)}`,
+          date: new Date().toISOString()
+        });
+      }
     }
-    
-    AuditService.log('SALE_COMPLETE', `Venda #${sale.id.slice(0,8)} finalizada. Total: R$ ${sale.total.toFixed(2)}`, 'INFO');
+
+    AuditService.log('SALE_COMPLETE', `Venda #${sale.id.slice(0, 8)} finalizada. Total: R$ ${sale.total.toFixed(2)}`, 'INFO');
 
     return sale;
   },
@@ -458,12 +492,12 @@ export const StorageService = {
     const txs = SafeStorage.getItem(KEYS.CASH_TRANSACTIONS);
     return txs ? JSON.parse(txs) : [];
   },
-  
+
   getFinancialRecordsByPeriod(start: Date, end: Date): IFinancialRecord[] {
-      const records = StorageService.getFinancialRecords();
-      return records.filter(r => {
-          const d = new Date(r.date);
-          return d >= start && d <= end;
-      });
+    const records = StorageService.getFinancialRecords();
+    return records.filter(r => {
+      const d = new Date(r.date);
+      return d >= start && d <= end;
+    });
   }
 };
