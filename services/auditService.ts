@@ -49,7 +49,7 @@ export const AuditService = {
 
         setStorageItem(KEYS.AUDIT_LOGS, JSON.stringify(logs));
     } catch (e) {
-        console.error("Failed to write audit log", e);
+
     }
   },
 

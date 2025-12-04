@@ -1,13 +1,11 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
-import { config } from 'dotenv';
 
-// Load environment variables
-config();
+// Load environment variables and validate
+import { env } from './config/env.js';
+import securityMiddleware from './middleware/security.js';
 
 // Import routes and middleware
 import { authRoutes } from './routes/auth.js';
@@ -23,32 +21,34 @@ import { auditMiddleware, errorHandler, notFoundHandler } from './middleware/ind
 import { connectDB, initDB } from './config/database.js';
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = env.PORT;
 
-// Security middleware
-app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+// === SEGURANÇA ENHANCED ===
 
-// CORS configuration
+// Security headers (Helmet)
+app.use(securityMiddleware.headers);
+
+// IP Whitelist (production only)
+app.use(securityMiddleware.ipWhitelist);
+
+// Security request logging
+app.use(securityMiddleware.logging);
+
+// CORS with security
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-    credentials: true
+    origin: env.CORS_CREDENTIALS ? env.CORS_ORIGIN || 'http://localhost:3000' : false,
+    credentials: env.CORS_CREDENTIALS
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 900000, // 15 minutes
-    max: Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 100 requests per window
-    message: {
-        error: 'Muitas solicitações, tente novamente mais tarde.',
-        retryAfter: '900' // seconds
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
+// Input sanitization - ALWAYS FIRST before any parsing
+app.use(securityMiddleware.inputSanitization);
 
-app.use('/api/', limiter);
+// SQL Injection protection
+app.use(securityMiddleware.sqlInjection);
+
+// Rate limiting - apply different limits per route
+app.use('/api/auth', securityMiddleware.rateLimiters.auth); // Strict auth limits
+app.use('/api', securityMiddleware.rateLimiters.general);   // General API limits
 
 // Compression
 app.use(compression());
@@ -70,7 +70,28 @@ app.get('/health', (req: Request, res: Response) => {
     res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: process.env.npm_package_version || '1.0.0'
+        version: process.env.npm_package_version || '1.0.0',
+        uptime: process.uptime()
+    });
+});
+
+// Security status endpoint - for debugging/security audits
+app.get('/security-status', (req: Request, res: Response) => {
+    const { getSecurityStatus } = require('./config/env.js');
+    const security = getSecurityStatus();
+
+    res.json({
+        timestamp: new Date().toISOString(),
+        environment: env.NODE_ENV,
+        security,
+        server: {
+            cors_enabled: env.CORS_CREDENTIALS,
+            rate_limiting: true,
+            helmet_headers: true,
+            input_sanitization: true,
+            sql_injection_protection: true,
+            ip_whitelist: !!env.IP_WHITELIST && env.NODE_ENV === 'production'
+        }
     });
 });
 

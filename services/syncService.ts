@@ -43,7 +43,7 @@ class SyncService {
     // Start background sync
     this.startBackgroundSync();
 
-    console.log('SyncService initialized');
+
   }
 
   static onStatusChange(callback: (status: SyncStatus) => void) {

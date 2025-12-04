@@ -1,131 +1,128 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
+  # Base de Dados
   postgres:
-    image: postgres:15
-    container_name: pdv_master_db
+    image: postgres:15-alpine
+    container_name: pdv-master-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: pdv_master
       POSTGRES_USER: pdv_master_user
       POSTGRES_PASSWORD: pdv_master_pass
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./backend/src/scripts/seed.ts:/docker-entrypoint-initdb.d/02-seed.ts
+      - ./backend/setup-db.sql:/docker-entrypoint-initdb.d/01-setup.sql
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql
+      - ./backend/fix-db.sql:/docker-entrypoint-initdb.d/03-fix.sql
+      - ./backend/seed.js:/docker-entrypoint-initdb.d/04-seed.js
+    ports:
+      - "5432:5432"
     networks:
-      - pdv_master_network
+      - pdv-master
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U pdv_master_user -d pdv_master" ]
+      test: ["CMD-SHELL", "pg_isready -U pdv_master_user -d pdv_master"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # PDV Master Backend
+  # pgAdmin para administração do banco
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: pdv-master-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pdvmaster.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5050:80"
+    networks:
+      - pdv-master
+
+  # Redis (opcional) para cache
+  redis:
+    image: redis:7-alpine
+    container_name: pdv-master-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --replica-read-only no
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - pdv-master
+    profiles:
+      - redis
+
+  # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pdv_master_backend
+    container_name: pdv-master-backend
     restart: unless-stopped
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PORT: 3001
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_NAME: pdv_master
       DATABASE_USER: pdv_master_user
       DATABASE_PASSWORD: pdv_master_pass
-      CORS_ORIGIN: http://localhost:3000
-      JWT_SECRET: super-secret-jwt-key-change-in-production-minimum-32-characters
-      LOG_LEVEL: debug
-    ports:
-      - "3001:3001"
-      - "9229:9229" # Debug port
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-      - uploads:/app/uploads
+      DATABASE_SSL: false
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production-64chars-minimum-security
+      JWT_EXPIRES_IN: 24h
+      JWT_REFRESH_SECRET: your-refresh-token-secret-key-different-from-jwt-very-secure
+      JWT_REFRESH_EXPIRES_IN: 7d
+      BCRYPT_ROUNDS: 12
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 100
+      LOG_LEVEL: info
+      SECURITY_HELMET: true
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
+        required: false
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend/uploads:/app/uploads
     networks:
-      - pdv_master_network
-    command: npm run dev
+      - pdv-master
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3001/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health", "||", "exit", "1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
 
-  # PDV Master Frontend (Optional - for full stack testing)
+  # Frontend React
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: pdv_master_frontend
+    container_name: pdv-master-frontend
     restart: unless-stopped
     environment:
-      VITE_API_BASE_URL: http://localhost:3001
+      VITE_API_URL: http://localhost:3001/api
+      VITE_APP_NAME: PDV Master
+      VITE_APP_VERSION: "1.0.0"
     ports:
-      - "3000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
+      - "3000:80"
+    networks:
+      - pdv-master
     depends_on:
-      - backend
-    networks:
-      - pdv_master_network
-    command: npm run dev
-    profiles:
-      - frontend
-
-  # pgAdmin - Database Management GUI
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pdv_master_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@pdvmaster.br
-      PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-    ports:
-      - "5050:80"
-    depends_on:
-      - postgres
-    networks:
-      - pdv_master_network
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    profiles:
-      - db-admin
-
-  # Redis (For future caching and session storage)
-  redis:
-    image: redis:7-alpine
-    container_name: pdv_master_redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - pdv_master_network
-    command: redis-server --appendonly yes --requirepass "pdv_master_redis_pass"
-    profiles:
-      - caching
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:
-  pgadmin_data:
   redis_data:
-  uploads:
-
 
 networks:
-  pdv_master_network:
+  pdv-master:
     driver: bridge

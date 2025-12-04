@@ -231,7 +231,78 @@ export const POS: React.FC = () => {
   };
 
   const handlePrint = () => {
-      window.print();
+      // Debug: verificar se há conteúdo para imprimir
+      const printableArea = document.getElementById('printable-area');
+      console.log('Print request:', { printType, lastSale: !!lastSale, closedRegisterData: !!closedRegisterData, printableArea: !!printableArea });
+
+      if (!printableArea) {
+          alert('Área de impressão não encontrada!');
+          return;
+      }
+      if (!printableArea.textContent?.trim()) {
+          alert('Não há conteúdo para imprimir!');
+          return;
+      }
+
+      // Criar uma nova janela para impressão (mais confiável)
+      const printWindow = window.open('', '_blank', 'width=600,height=400');
+      if (!printWindow) {
+          alert('Bloqueador de pop-ups! Permita pop-ups para imprimir.');
+          return;
+      }
+
+      // Copiar estilos e conteúdo
+      const content = printableArea.innerHTML;
+      const styles = `
+          <style>
+              @page { size: 80mm auto; margin: 0; }
+              html, body {
+                  font-family: monospace;
+                  font-size: 10px;
+                  line-height: 1.2;
+                  margin: 0;
+                  padding: 2mm;
+                  background: white;
+                  color: black;
+                  width: 80mm;
+                  box-sizing: border-box;
+              }
+              .text-center { text-align: center; }
+              .text-right { text-align: right; }
+              .text-left { text-align: left; }
+              .font-bold { font-weight: bold; }
+              .uppercase { text-transform: uppercase; }
+              .dashed-line {
+                  border-bottom: 1px dashed black;
+                  margin: 3px 0;
+                  width: 100%;
+                  display: block;
+              }
+              table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  font-size: 9px;
+              }
+              th, td { padding: 1px 0; }
+              img {
+                  max-width: 70mm;
+                  height: auto;
+              }
+              @media print {
+                  html, body { margin: 0; padding: 1mm; }
+                  .dashed-line { page-break-inside: avoid; }
+              }
+          </style>
+      `;
+
+      printWindow.document.write(`<!DOCTYPE html><html><head><title>Imprimir Recibo</title>${styles}</head><body>${content}</body></html>`);
+      printWindow.document.close();
+
+      // Esperar carregar e imprimir
+      printWindow.onload = () => {
+          printWindow.print();
+          printWindow.close();
+      };
   };
 
   const closePrintModal = () => {
@@ -743,10 +814,7 @@ export const POS: React.FC = () => {
                                 <span className="font-medium flex items-center gap-2"><TrendingDown size={16}/> Sangrias</span>
                                 <span className="font-bold">- {formatCurrency(closingSummary.bleed)}</span>
                             </div>
-                            <div className="flex justify-between items-center pt-2 bg-slate-100 p-3 rounded-lg">
-                                <span className="font-bold text-slate-700 uppercase text-sm">Saldo Esperado</span>
-                                <span className="font-black text-xl text-slate-800">{formatCurrency(closingSummary.calculated)}</span>
-                            </div>
+
                         </div>
 
                         <div className="bg-amber-50 border border-amber-200 p-6 rounded-xl mb-6">

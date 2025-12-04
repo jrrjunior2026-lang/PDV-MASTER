@@ -570,7 +570,7 @@ export const Inventory: React.FC = () => {
             )}
 
             {/* Hidden Printable Area - Remains unchanged for actual printing */}
-            <div id="printable-area" className="hidden">
+            <div id="printable-area" style={{ visibility: 'hidden', position: 'absolute', left: '-9999px' }}>
                 <style>{`
             #printable-area {
                 display: grid;
