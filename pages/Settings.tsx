@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { ISettings, IAuditLog } from '../types';
 import { Button, Input, Card, AlertModal, Badge, ConfirmModal } from '../components/UI';
-import { Building2, FileCheck, CreditCard, Palette, Save, Upload, Trash2, Image as ImageIcon, Users, UserPlus, Pencil, Shield, AlertTriangle, Search, Zap } from 'lucide-react';
+import { Building2, FileCheck, CreditCard, Palette, Save, Upload, Trash2, Image as ImageIcon, Users, UserPlus, Pencil, Shield, AlertTriangle, Search, Zap, KeyRound, FileLock } from 'lucide-react';
+import { apiService } from '../services/apiService';
 import { AuditService } from '../services/auditService'; // Import Audit
 import { SyncStatusIndicator } from '../components/SyncStatus';
 
@@ -10,6 +11,11 @@ export const Settings: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'COMPANY' | 'FISCAL' | 'PAYMENT' | 'APPEARANCE' | 'USERS' | 'SECURITY' | 'SYNC'>('COMPANY');
     const [settings, setSettings] = useState<ISettings>(StorageService.getSettings());
     const [loading, setLoading] = useState(false);
+    const [certLoading, setCertLoading] = useState(false);
+
+    // State for certificate
+    const [certificateFile, setCertificateFile] = useState<File | null>(null);
+    const [certificatePassword, setCertificatePassword] = useState('');
 
     // Users State
     const [users, setUsers] = useState<any[]>([]);
@@ -56,21 +62,63 @@ export const Settings: React.FC = () => {
         showAlert('Configurações salvas com sucesso!', 'Sucesso', 'success');
     };
 
-    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             if (file.size > 2048 * 1024) { // 2MB limit
                 showAlert('A imagem é muito grande. O limite é 2MB.', 'Erro', 'error');
                 return;
             }
-            const reader = new FileReader();
-            reader.onloadend = () => {
+            setLoading(true);
+            try {
+                const response = await apiService.uploadLogo(file);
+                showAlert('Logo salva com sucesso!', 'Sucesso', 'success');
+                // Optionally set the logo URL for display
                 setSettings(prev => ({
                     ...prev,
-                    appearance: { ...prev.appearance, logoUrl: reader.result as string }
+                    appearance: { ...prev.appearance, logoUrl: response.path }
                 }));
-            };
-            reader.readAsDataURL(file);
+            } catch (error: any) {
+                showAlert(error.message || 'Erro ao fazer upload da logo.', 'Erro', 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    const handleCertUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && file.name.endsWith('.pfx')) {
+            setCertificateFile(file);
+        } else {
+            showAlert('Por favor, selecione um arquivo .pfx válido.', 'Erro', 'error');
+            setCertificateFile(null);
+            e.target.value = ''; // Reset file input
+        }
+    };
+
+    const handleSaveCertificate = async () => {
+        if (!certificateFile) {
+            return showAlert('Nenhum arquivo de certificado selecionado.', 'Erro', 'error');
+        }
+        if (!certificatePassword) {
+            return showAlert('Por favor, informe a senha do certificado.', 'Erro', 'error');
+        }
+
+        setCertLoading(true);
+        try {
+            const response = await apiService.uploadCertificate(certificateFile, certificatePassword);
+            showAlert(response.message || 'Certificado salvo com sucesso!', 'Sucesso', 'success');
+            setCertificateFile(null);
+            setCertificatePassword('');
+            // Clear the file input visually
+            const fileInput = document.getElementById('cert-upload') as HTMLInputElement;
+            if(fileInput) fileInput.value = '';
+
+        } catch (error: any) {
+            showAlert(error.message || 'Ocorreu um erro ao salvar o certificado.', 'Erro', 'error');
+        } finally {
+            setCertLoading(false);
         }
     };
 
@@ -238,6 +286,40 @@ export const Settings: React.FC = () => {
                                     <Input label="ID do CSC (Token ID)" value={settings.fiscal.cscId} onChange={e => setSettings({ ...settings, fiscal: { ...settings.fiscal, cscId: e.target.value } })} placeholder="Ex: 000001" />
                                 </div>
                                 <Input label="Código CSC (Token)" value={settings.fiscal.cscToken} onChange={e => setSettings({ ...settings, fiscal: { ...settings.fiscal, cscToken: e.target.value } })} placeholder="Ex: A1B2C3D4..." />
+
+                                <div className="!mt-8 pt-6 border-t-2 border-dashed border-slate-200 space-y-4">
+                                    <h4 className="text-md font-bold text-slate-800 flex items-center gap-2"><FileLock size={20} /> Certificado Digital A1</h4>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Arquivo do Certificado (.pfx)</label>
+                                        <div className="flex items-center gap-4">
+                                            <label htmlFor="cert-upload" className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium transition border border-slate-300">
+                                                <Upload size={18} /> Selecionar Arquivo
+                                            </label>
+                                            <input
+                                                type="file"
+                                                id="cert-upload"
+                                                className="hidden"
+                                                accept=".pfx"
+                                                onChange={handleCertUpload}
+                                            />
+                                            <span className="text-sm text-slate-500">{certificateFile ? certificateFile.name : 'Nenhum arquivo selecionado.'}</span>
+                                        </div>
+                                    </div>
+
+                                    <Input
+                                        label="Senha do Certificado"
+                                        type="password"
+                                        value={certificatePassword}
+                                        onChange={e => setCertificatePassword(e.target.value)}
+                                        placeholder="Digite a senha do seu certificado"
+                                        icon={<KeyRound size={18} />}
+                                    />
+
+                                    <Button onClick={handleSaveCertificate} disabled={certLoading} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                                        <Save size={18} /> {certLoading ? 'Salvando...' : 'Salvar Certificado e Senha'}
+                                    </Button>
+                                </div>
                             </div>
                         )}
 
@@ -307,6 +389,7 @@ export const Settings: React.FC = () => {
                                             {settings.appearance.logoUrl && (
                                                 <button
                                                     onClick={() => setSettings(prev => ({ ...prev, appearance: { ...prev.appearance, logoUrl: null } }))}
+                                                    title="Remover logo atual"
                                                     className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-md transition text-sm font-medium"
                                                 >
                                                     <Trash2 size={16} /> Remover Logo
@@ -356,10 +439,10 @@ export const Settings: React.FC = () => {
                                                     </td>
                                                     <td className="px-6 py-4 text-right">
                                                         <div className="flex justify-end gap-2">
-                                                            <button onClick={() => handleEditUser(u)} className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition">
+                                                            <button onClick={() => handleEditUser(u)} title="Editar usuário" className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition">
                                                                 <Pencil size={16} />
                                                             </button>
-                                                            <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition">
+                                                            <button onClick={() => handleDeleteUser(u.id)} title="Excluir usuário" className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition">
                                                                 <Trash2 size={16} />
                                                             </button>
                                                         </div>
@@ -480,6 +563,7 @@ export const Settings: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={() => setUserForm({ ...userForm, role: 'ADMIN' })}
+                                        title="Selecionar função Administrador"
                                         className={`p-3 rounded-lg border-2 flex flex-col items-center gap-2 transition ${userForm.role === 'ADMIN' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
                                     >
                                         <Shield size={20} />
@@ -488,7 +572,9 @@ export const Settings: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={() => setUserForm({ ...userForm, role: 'CASHIER' })}
+                                        title="Selecionar função Operador de Caixa"
                                         className={`p-3 rounded-lg border-2 flex flex-col items-center gap-2 transition ${userForm.role === 'CASHIER' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+
                                     >
                                         <CreditCard size={20} />
                                         <span className="text-sm font-bold">Caixa</span>

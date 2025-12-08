@@ -1,5 +1,5 @@
 // Database seeding script
-import { query } from './src/config/database.ts';
+import { query } from './src/config/database';
 
 async function runSeed() {
     try {

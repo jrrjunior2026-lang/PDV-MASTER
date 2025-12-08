@@ -115,14 +115,46 @@ const createTablesIfNotExist = async (client: any): Promise<void> => {
 const createEssentialTables = async (client: any): Promise<void> => {
   // Create types
   await client.query(`
-    CREATE TYPE IF NOT EXISTS user_role AS ENUM ('ADMIN', 'CASHIER');
-    CREATE TYPE IF NOT EXISTS transaction_type AS ENUM ('SALE', 'ADJUSTMENT', 'SUPPLY', 'BLEED', 'OPENING', 'CLOSING');
-    CREATE TYPE IF NOT EXISTS payment_method AS ENUM ('CASH', 'PIX', 'CARD', 'CREDIT');
-    CREATE TYPE IF NOT EXISTS register_status AS ENUM ('OPEN', 'CLOSED', 'COUNTING');
-    CREATE TYPE IF NOT EXISTS financial_type AS ENUM ('INCOME', 'EXPENSE');
-    CREATE TYPE IF NOT EXISTS tax_group AS ENUM ('A', 'B', 'C');
-    CREATE TYPE IF NOT EXISTS unit_type AS ENUM ('UN', 'KG', 'L', 'M');
-    CREATE TYPE IF NOT EXISTS origin_code AS ENUM ('0', '1', '2');
+    DO $$ BEGIN
+        CREATE TYPE user_role AS ENUM ('ADMIN', 'CASHIER');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    DO $$ BEGIN
+        CREATE TYPE transaction_type AS ENUM ('SALE', 'ADJUSTMENT', 'SUPPLY', 'BLEED', 'OPENING', 'CLOSING');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    DO $$ BEGIN
+        CREATE TYPE payment_method AS ENUM ('CASH', 'PIX', 'CARD', 'CREDIT');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    DO $$ BEGIN
+        CREATE TYPE register_status AS ENUM ('OPEN', 'CLOSED', 'COUNTING');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    DO $$ BEGIN
+        CREATE TYPE financial_type AS ENUM ('INCOME', 'EXPENSE');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    DO $$ BEGIN
+        CREATE TYPE tax_group AS ENUM ('A', 'B', 'C');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    DO $$ BEGIN
+        CREATE TYPE unit_type AS ENUM ('UN', 'KG', 'L', 'M');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    DO $$ BEGIN
+        CREATE TYPE origin_code AS ENUM ('0', '1', '2');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
   `);
 
   // Create users table
@@ -158,6 +190,19 @@ const createEssentialTables = async (client: any): Promise<void> => {
       description TEXT,
       is_active BOOLEAN NOT NULL DEFAULT true,
       image_url TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  // Create settings table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS settings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      key VARCHAR(100) UNIQUE NOT NULL,
+      value JSONB NOT NULL,
+      description TEXT,
+      is_system BOOLEAN NOT NULL DEFAULT false,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -226,7 +271,7 @@ const createEssentialTables = async (client: any): Promise<void> => {
 // Verify schema integrity
 const verifySchema = async (client: any): Promise<void> => {
   // Check if required tables exist
-  const tables = ['users', 'products', 'customers', 'sales', 'sale_items'];
+  const tables = ['users', 'products', 'settings', 'customers', 'sales', 'sale_items'];
   for (const table of tables) {
     const result = await client.query(`
       SELECT EXISTS (

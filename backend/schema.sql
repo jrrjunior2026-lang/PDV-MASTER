@@ -347,7 +347,7 @@ BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -369,7 +369,7 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER kardex_stock_update
     AFTER INSERT ON kardex
@@ -430,5 +430,3 @@ INSERT INTO customers (name, document) VALUES
 INSERT INTO financial_records (type, description, amount, category, status) VALUES
     ('EXPENSE', 'Conta de Energia', 1250.00, 'Utilidades', 'PENDING'),
     ('INCOME', 'Vendas do Dia Anterior', 4500.00, 'Vendas', 'PAID');
-
-COMMIT;

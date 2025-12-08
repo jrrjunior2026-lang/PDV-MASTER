@@ -8,7 +8,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const schemaPath = path.join(__dirname, '../../schema.sql');
+const schemaPath = path.join(__dirname, '../../schema.simple.sql');
 
 async function runMigrations() {
     try {
@@ -26,6 +26,13 @@ async function runMigrations() {
             .split(';')
             .map(stmt => stmt.trim())
             .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+
+        console.log(`📊 Found ${statements.length} statements after filtering`);
+
+        // Debug: print first few statements
+        statements.slice(0, 5).forEach((stmt, i) => {
+            console.log(`🔍 Statement ${i + 1}:`, stmt.substring(0, 100));
+        });
 
         console.log(`⚡ Executing ${statements.length} SQL statements...`);
 

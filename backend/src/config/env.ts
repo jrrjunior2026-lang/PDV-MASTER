@@ -27,6 +27,7 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(64, 'JWT_REFRESH_SECRET must be at least 64 characters').default(process.env.JWT_SECRET!),
   JWT_REFRESH_EXPIRES_IN: z.string().regex(/^\d+[smhd]$/).default('7d'),
   BCRYPT_ROUNDS: z.string().transform(Number).pipe(z.number().min(8).max(16)).default('12'),
+  CERTIFICATE_ENCRYPTION_KEY: z.string().length(64, 'CERTIFICATE_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)').regex(/^[0-9a-fA-F]{64}$/, 'CERTIFICATE_ENCRYPTION_KEY must be a valid hex string'),
 
   // File Upload Security
   MAX_FILE_SIZE: z.string().transform(Number).pipe(z.number().min(1024).max(52428800)).default('2097152'), // 2MB default
@@ -109,6 +110,9 @@ try {
     }
     if (!env.DATABASE_URL && !env.DATABASE_HOST) {
       throw new Error('DATABASE_URL or DATABASE_HOST is required in production');
+    }
+    if (!env.CERTIFICATE_ENCRYPTION_KEY) {
+        throw new Error('CERTIFICATE_ENCRYPTION_KEY is required in production');
     }
   }
 

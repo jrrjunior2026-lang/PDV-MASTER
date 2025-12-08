@@ -4,7 +4,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 
 // Load environment variables and validate
-import { env } from './config/env.js';
+import { env, getSecurityStatus } from './config/env.js';
 import securityMiddleware from './middleware/security.js';
 
 // Import routes and middleware
@@ -36,7 +36,7 @@ app.use(securityMiddleware.logging);
 
 // CORS with security
 app.use(cors({
-    origin: env.CORS_CREDENTIALS ? env.CORS_ORIGIN || 'http://localhost:3000' : false,
+    origin: env.CORS_ORIGIN || 'http://localhost:3000',
     credentials: env.CORS_CREDENTIALS
 }));
 
@@ -64,9 +64,10 @@ app.use(express.urlencoded({ extended: true }));
 
 // Static files
 app.use('/uploads', express.static('uploads'));
+app.use('/api/uploads', express.static('uploads')); // Alternative path for API
 
 // Health check
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (req, res) => {
     res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
@@ -76,8 +77,7 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // Security status endpoint - for debugging/security audits
-app.get('/security-status', (req: Request, res: Response) => {
-    const { getSecurityStatus } = require('./config/env.js');
+app.get('/security-status', (req, res) => {
     const security = getSecurityStatus();
 
     res.json({
@@ -96,7 +96,7 @@ app.get('/security-status', (req: Request, res: Response) => {
 });
 
 // API info endpoint
-app.get('/api', (req: Request, res: Response) => {
+app.get('/api', (req, res) => {
     res.json({
         name: "PDV Master Enterprise API",
         version: "1.0.0",
@@ -200,35 +200,5 @@ process.on('SIGTERM', async () => {
     process.exit(0);
 });
 
-// Server startup
-const startServer = async () => {
-    try {
-        // Try to initialize database (continue even if fails)
-        try {
-            await initDB();
-            console.log('✅ Database connected successfully');
-        } catch (dbError: any) {
-            console.warn('⚠️  Database connection failed, running without DB:', dbError.message);
-            console.warn('💡 To fix: Setup PostgreSQL or run: cd backend && npm run migrate');
-        }
-
-        // Start server regardless of DB status
-        app.listen(PORT, () => {
-            console.log(`
-🚀 PDV Master Backend Server
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🌐 Server: http://localhost:${PORT}
-📡 API: http://localhost:${PORT}/api
-🏥 Health: http://localhost:${PORT}/health
-📊 Environment: ${process.env.NODE_ENV || 'development'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Ready to accept connections!
-            `);
-        });
-    } catch (error) {
-        console.error('❌ Falha crítica ao iniciar servidor:', (error as any).message || error);
-        process.exit(1);
-    }
-};
-
-startServer();
+// Export the express app for Firebase
+export { app };

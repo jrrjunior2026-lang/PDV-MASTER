@@ -1,34 +1,25 @@
-# PDV Master Backend Dockerfile
-FROM node:18-alpine
-
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init curl
-
-# Create app directory
+# Stage 1: Development base image with all dependencies and source code
+FROM node:18-alpine AS development
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
-
-# Copy source code
+RUN npm ci
 COPY . .
 
-# Change ownership to node user
+# Stage 2: Builder stage to create production artifacts
+FROM development AS builder
+RUN npm run build
+
+# Stage 3: Production final stage
+FROM node:18-alpine AS production
+RUN apk add --no-cache dumb-init curl
+WORKDIR /app
+COPY --from=builder /app/package*.json ./
+RUN npm ci --only=production
+COPY --from=builder /app/dist ./dist
 RUN chown -R node:node /app
 USER node
-
-# Expose port
 EXPOSE 3001
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3001/health || exit 1
-
-# Use dumb-init for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
-
-# Start application
-CMD ["npm", "start"]
+CMD ["node", "dist/server.js"]

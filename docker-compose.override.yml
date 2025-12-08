@@ -10,6 +10,8 @@ services:
 
   # Configurações de desenvolvimento para backend
   backend:
+    build:
+      target: development
     environment:
       # Desenvolvimento mais verboso
       NODE_ENV: development

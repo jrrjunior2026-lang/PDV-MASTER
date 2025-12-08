@@ -29,7 +29,7 @@ services:
     container_name: pdv-master-pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@pdvmaster.local
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin123
     depends_on:
       postgres:
@@ -53,13 +53,14 @@ services:
       DATABASE_PASSWORD: pdv_master_pass
       DATABASE_SSL: false
       JWT_SECRET: dev-secret-key-change-in-production-64chars-minimum-security-with-extra-padding
+      CERTIFICATE_ENCRYPTION_KEY: abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234
       BCRYPT_ROUNDS: 10
       LOG_LEVEL: info
     ports:
       - "3001:3001"
     volumes:
       - ./backend:/app
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install && npm run db:migrate && tsx seed.js && npm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,7 +78,7 @@ services:
       - "3000:3000"
     volumes:
       - .:/app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm install --legacy-peer-deps && npm run dev -- --host 0.0.0.0"
     depends_on:
       - backend
 
