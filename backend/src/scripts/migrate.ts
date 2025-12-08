@@ -1,12 +1,13 @@
 // Database migration script
-import { query } from '../config/database';
+import { query } from '../config/database.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = dirname(__filename);
+// In CJS, __dirname is global
 
 const schemaPath = path.join(__dirname, '../../schema.simple.sql');
 
@@ -58,7 +59,7 @@ async function runMigrations() {
     }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
     runMigrations();
 }
 

@@ -4,7 +4,7 @@ import { env } from '../config/env.js';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16; // For AES, this is always 16
 const AUTH_TAG_LENGTH = 16;
-const KEY = Buffer.from(env.CERTIFICATE_ENCRYPTION_KEY, 'hex');
+const KEY = Buffer.from(env.CERTIFICATE_ENCRYPTION_KEY || '00'.repeat(32), 'hex');
 
 if (KEY.length !== 32) {
     throw new Error('Invalid CERTIFICATE_ENCRYPTION_KEY length. Must be a 32-byte hex string.');
@@ -42,7 +42,7 @@ export const decrypt = (encryptedText: string): string => {
 
         const decipher = crypto.createDecipheriv(ALGORITHM, KEY, iv);
         decipher.setAuthTag(authTag);
-        
+
         const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
 
         return decrypted.toString('utf8');

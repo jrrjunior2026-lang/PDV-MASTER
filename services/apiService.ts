@@ -1,5 +1,12 @@
-// Base URL for the API. In a real app, this would come from an environment variable.
-const API_BASE_URL = 'http://localhost:3001/api';
+// Base URL for the API.
+// In production (Firebase Hosting), we want to point to the Cloud Function.
+// In development, we point to localhost.
+const isProduction = import.meta.env.PROD || window.location.hostname !== 'localhost';
+const API_BASE_URL = isProduction
+    ? 'https://southamerica-east1-pdv-mastergit-64616629.cloudfunctions.net/api'
+    : 'http://localhost:3001/api';
+
+console.log('🔌 API Service initialized with URL:', API_BASE_URL);
 
 /**
  * Uploads the digital certificate and its password to the server.
@@ -14,7 +21,7 @@ export const uploadCertificate = async (certificateFile: File, certificatePasswo
 
     // Note: Authentication headers would be needed in a real-world scenario.
     // const token = getAuthToken(); // Assuming a function to get the auth token
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/settings/certificate`, {
             method: 'POST',

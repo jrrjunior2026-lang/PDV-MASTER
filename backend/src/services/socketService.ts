@@ -1,7 +1,7 @@
 import { Server as SocketServer } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { query } from '../config/database.js';
-import { AuthenticatedSocket, UserSocket } from '../types/socket';
+import { AuthenticatedSocket, UserSocket } from '../types/socket.js';
 
 // Active connections tracking
 const activeUsers = new Map<string, UserSocket>();

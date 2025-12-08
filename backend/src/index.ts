@@ -1,6 +1,7 @@
-import * as functions from 'firebase-functions';
-import { app } from './server';
-import { initDB } from './config/database';
+import * as functions from 'firebase-functions/v1';
+import { app } from './server.js';
+import { initDB } from './config/database.js';
+import { Request, Response } from 'express';
 
 // A flag to ensure we only initialize the DB once per instance.
 let dbInitialized = false;
@@ -23,7 +24,7 @@ const initializeDatabase = async () => {
 // Create the main API function.
 // The 'api' name here will be part of the URL, e.g., .../api
 // Using 'southamerica-east1' (São Paulo) as the region.
-export const api = functions.region('southamerica-east1').https.onRequest(async (request, response) => {
+export const api = functions.region('southamerica-east1').https.onRequest(async (request: Request, response: Response) => {
     // Ensure the database is initialized before handling any request.
     await initializeDatabase();
     // Pass the request to the Express app.

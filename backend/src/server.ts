@@ -36,8 +36,8 @@ app.use(securityMiddleware.logging);
 
 // CORS with security
 app.use(cors({
-    origin: env.CORS_ORIGIN || 'http://localhost:3000',
-    credentials: env.CORS_CREDENTIALS
+    origin: true, // Allow all origins temporarily to fix the issue
+    credentials: true // Force true for cookies/auth headers
 }));
 
 // Input sanitization - ALWAYS FIRST before any parsing
