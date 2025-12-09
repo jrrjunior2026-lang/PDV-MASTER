@@ -25,15 +25,8 @@ const certificateUpload = multer({
 });
 
 // Multer configuration for logo upload
-const logoStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/logos'); // Save logos to uploads/logos
-    },
-    filename: (req, file, cb) => {
-        const uniqueName = `logo-${Date.now()}-${Math.random().toString(36).substring(7)}.${file.originalname.split('.').pop()}`;
-        cb(null, uniqueName);
-    }
-});
+// Multer configuration for logo upload
+const logoStorage = multer.memoryStorage(); // Store file in memory to process it manually
 const logoUpload = multer({
     storage: logoStorage,
     limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
@@ -115,15 +108,10 @@ router.post('/certificate', [
         }
         console.log('[CERT_UPLOAD] Senha recebida.');
 
-        // --- Save File ---
-        const certsDir = path.resolve(process.cwd(), 'certs');
-        console.log(`[CERT_UPLOAD] Verificando/criando diretório de certificados em: ${certsDir}`);
-        await fs.mkdir(certsDir, { recursive: true });
-        
-        const certPath = path.join(certsDir, 'nfce_certificate.pfx');
-        console.log(`[CERT_UPLOAD] Salvando arquivo do certificado em: ${certPath}`);
-        await fs.writeFile(certPath, certificateFile.buffer);
-        console.log('[CERT_UPLOAD] Arquivo salvo com sucesso no disco.');
+        // --- Convert to Base64 ---
+        console.log('[CERT_UPLOAD] Convertendo certificado para Base64...');
+        const certBase64 = certificateFile.buffer.toString('base64');
+        console.log('[CERT_UPLOAD] Conversão concluída.');
 
         // --- Encrypt Password ---
         console.log('[CERT_UPLOAD] Criptografando senha...');
@@ -131,15 +119,15 @@ router.post('/certificate', [
         console.log('[CERT_UPLOAD] Senha criptografada com sucesso.');
 
         // --- Save to Database ---
-        const dbCertPath = `certs/nfce_certificate.pfx`;
-        console.log(`[CERT_UPLOAD] Salvando caminho do certificado no BD: key='nfce_cert_path', value='${dbCertPath}'`);
+        // We save the actual content as base64 instead of a file path
+        console.log(`[CERT_UPLOAD] Salvando conteúdo do certificado no BD: key='nfce_cert_data'`);
         await query(
             `INSERT INTO settings (key, value) VALUES ($1, $2)
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-            ['nfce_cert_path', JSON.stringify(dbCertPath)]
+            ['nfce_cert_data', JSON.stringify(certBase64)]
         );
-        console.log('[CERT_UPLOAD] Caminho do certificado salvo no BD.');
-        
+        console.log('[CERT_UPLOAD] Conteúdo do certificado salvo no BD.');
+
         console.log('[CERT_UPLOAD] Salvando senha criptografada no BD: key=nfce_cert_password');
         await query(
             `INSERT INTO settings (key, value) VALUES ($1, $2)
@@ -175,32 +163,27 @@ router.post('/logo', [
         }
 
         console.log(`[LOGO_UPLOAD] Logo recebida: ${logoFile.originalname}, Tamanho: ${logoFile.size} bytes`);
-        
-        // --- Save File ---
-        const uploadsDir = path.resolve(process.cwd(), 'uploads');
-        console.log(`[LOGO_UPLOAD] Verificando/criando diretório de uploads em: ${uploadsDir}`);
-        await fs.mkdir(uploadsDir, { recursive: true });
-        
-        // Use a consistent filename
-        const logoPath = path.join(uploadsDir, 'company_logo.png');
-        console.log(`[LOGO_UPLOAD] Salvando arquivo da logo em: ${logoPath}`);
-        await fs.writeFile(logoPath, logoFile.buffer);
-        console.log('[LOGO_UPLOAD] Arquivo salvo com sucesso no disco.');
+
+        // --- Convert to Base64 ---
+        // Create a Data URI: data:<mime-type>;base64,<data>
+        const base64Image = `data:${logoFile.mimetype};base64,${logoFile.buffer.toString('base64')}`;
+        console.log('[LOGO_UPLOAD] Imagem convertida para Base64.');
 
         // --- Save to Database ---
-        const dbLogoPath = '/uploads/company_logo.png'; // Path for frontend to access
-        console.log(`[LOGO_UPLOAD] Salvando caminho da logo no BD: key='app_logo_path', value='${dbLogoPath}'`);
+        // We save the Data URI directly in the database
+        console.log(`[LOGO_UPLOAD] Salvando logo no BD: key='app_logo_path'`);
+        // Note: We keep the key 'app_logo_path' for compatibility, but now it stores the actual data URI
         await query(
             `INSERT INTO settings (key, value) VALUES ($1, $2)
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-            ['app_logo_path', JSON.stringify(dbLogoPath)]
+            ['app_logo_path', JSON.stringify(base64Image)]
         );
-        console.log('[LOGO_UPLOAD] Caminho da logo salvo no BD.');
-        
+        console.log('[LOGO_UPLOAD] Logo salva no BD.');
+
         console.log('[LOGO_UPLOAD] Processo concluído com sucesso!');
-        res.json({ 
+        res.json({
             message: 'Logo salva com sucesso!',
-            path: dbLogoPath 
+            path: base64Image // Return the data URI so frontend can display it immediately
         });
 
     } catch (error) {
