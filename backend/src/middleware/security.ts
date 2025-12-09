@@ -192,7 +192,7 @@ export const securityHeaders = helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "https:", "http:"], // Allow external connections
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -200,6 +200,7 @@ export const securityHeaders = helmet({
     },
   },
   crossOriginEmbedderPolicy: false, // Disable for API responses
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin resource sharing
   hsts: isProduction() ? {
     maxAge: 31536000,
     includeSubDomains: true,
@@ -212,6 +213,10 @@ export const securityHeaders = helmet({
 
 // IP whitelist middleware (for production hardening)
 export const ipWhitelist = (req: Request, res: Response, next: NextFunction) => {
+  // Temporarily disable IP whitelist to prevent blocking valid requests from Firebase Hosting
+  return next();
+
+  /*
   if (!env.IP_WHITELIST || !isProduction()) {
     return next();
   }
@@ -227,6 +232,7 @@ export const ipWhitelist = (req: Request, res: Response, next: NextFunction) => 
   }
 
   next();
+  */
 };
 
 // Request logging with security context
