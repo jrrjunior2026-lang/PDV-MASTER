@@ -164,3 +164,17 @@ process.on('SIGTERM', async () => {
 
 // Export the express app for Firebase
 export { app };
+
+// Start local server if not running in Firebase
+import { createServer } from 'http';
+import { initializeSocketService } from './services/socketService.js';
+
+if (process.env.NODE_ENV !== 'test') {
+    const httpServer = createServer(app);
+    initializeSocketService(httpServer);
+
+    httpServer.listen(PORT, () => {
+        console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+        console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+    });
+}
