@@ -7,7 +7,7 @@
         "node": "20"
     },
     "scripts": {
-        "dev": "ts-node --esm --transpile-only --files src/server.ts",
+        "dev": "tsx src/server.ts",
         "build": "tsc",
         "start": "node dist/server.js",
         "db:migrate": "tsx src/scripts/migrate.ts",

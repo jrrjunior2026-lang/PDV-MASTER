@@ -26,7 +26,12 @@ async function runMigrations() {
         const statements = schemaSQL
             .split(';')
             .map(stmt => stmt.trim())
-            .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+            .filter(stmt => {
+                if (stmt.length === 0) return false;
+                // Remove comments to see if there's any actual SQL
+                const withoutComments = stmt.replace(/--.*$/gm, '').trim();
+                return withoutComments.length > 0;
+            });
 
         console.log(`📊 Found ${statements.length} statements after filtering`);
 
