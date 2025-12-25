@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import { env, isProduction } from '../config/env.js';
+import { env, isProduction } from '../config/env';
 
 // Input sanitization functions
 export const sanitizeInput = (input: string): string => {

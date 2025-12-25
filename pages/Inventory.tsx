@@ -3,6 +3,7 @@ import { StorageService } from '../services/storageService';
 import { CsvService } from '../services/csvService';
 import { IProduct, IKardexEntry, TransactionType } from '../types';
 import { Button, Input, Card, formatCurrency, Badge, ConfirmModal, AlertModal } from '../components/UI';
+import { createPortal } from 'react-dom';
 import { Plus, Search, FileText, ArrowUpRight, ArrowDownLeft, AlertCircle, Download, Upload, FileSpreadsheet, Printer, X, Trash2, Tag, Eye, ChevronLeft } from 'lucide-react';
 import { GeminiService } from '../services/geminiService';
 import JsBarcode from 'jsbarcode';
@@ -15,9 +16,9 @@ const BarcodeRenderer: React.FC<{ value: string; className?: string }> = ({ valu
         if (svgRef.current) {
             try {
                 JsBarcode(svgRef.current, value, {
-                    format: (value.length === 13 && !isNaN(Number(value))) ? "EAN13" : "CODE128",
+                    format: "CODE128",
                     width: 2,
-                    height: 30, // Adjusted height
+                    height: 30,
                     displayValue: true,
                     fontSize: 12,
                     margin: 0,
@@ -569,46 +570,44 @@ export const Inventory: React.FC = () => {
                 </div>
             )}
 
-            {/* Hidden Printable Area - Remains unchanged for actual printing */}
-            <div id="printable-area" style={{ visibility: 'hidden', position: 'absolute', left: '-9999px' }}>
-                <style>{`
-            #printable-area {
-                display: grid;
-                grid-template-columns: repeat(3, 33mm);
-                /* Usually thermal rolls have specific gaps, but standard 3-col is approx 105-108mm width */
-                width: 105mm; 
-                justify-content: start;
-            }
-            .label-cell {
-                width: 33mm;
-                height: 21mm;
-                padding: 1mm 2mm;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: space-between;
-                overflow: hidden;
-                box-sizing: border-box;
-                page-break-inside: avoid;
-                text-align: center;
-                /* Debug border, remove in prod if needed, but helps alignment */
-                /* border: 1px dashed #ccc; */ 
-            }
-         `}</style>
-                {flatLabels.map((prod, idx) => (
-                    <div key={`${prod.id}-${idx}`} className="label-cell">
-                        <div className="w-full text-center">
-                            <p className="text-[8px] font-bold leading-tight truncate w-full uppercase text-black">{prod.name.substring(0, 18)}</p>
+            {/* Hidden Printable Area using React Portal */}
+            {createPortal(
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 33mm)',
+                    width: '105mm',
+                    justifyContent: 'start',
+                    backgroundColor: 'white'
+                }}>
+                    {flatLabels.map((prod, idx) => (
+                        <div key={`${prod.id}-${idx}`} style={{
+                            width: '33mm',
+                            height: '21mm',
+                            padding: '1mm 2mm',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            overflow: 'hidden',
+                            boxSizing: 'border-box',
+                            textAlign: 'center',
+                            color: 'black',
+                            backgroundColor: 'white'
+                        }}>
+                            <div className="w-full text-center">
+                                <p style={{ fontSize: '8px', fontWeight: 'bold', margin: 0, color: 'black' }}>{prod.name.substring(0, 18).toUpperCase()}</p>
+                            </div>
+                            <div className="w-full text-center">
+                                <p style={{ fontSize: '10px', fontWeight: '900', margin: 0, color: 'black' }}>R$ {prod.price.toFixed(2).replace('.', ',')}</p>
+                            </div>
+                            <div style={{ width: '95%', height: '12mm', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <BarcodeRenderer value={prod.code} />
+                            </div>
                         </div>
-                        <div className="w-full text-center -mt-1">
-                            <p className="text-[10px] font-black text-black">R$ {prod.price.toFixed(2).replace('.', ',')}</p>
-                        </div>
-                        <div className="w-[95%] h-[12mm] flex items-center justify-center overflow-hidden">
-                            <BarcodeRenderer value={prod.code} />
-                        </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>,
+                document.getElementById('printable-area') || document.body
+            )}
 
             {/* Add/Edit Product Modal */}
             {showAddModal && (

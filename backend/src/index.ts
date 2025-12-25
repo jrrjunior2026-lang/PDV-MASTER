@@ -26,7 +26,22 @@ const initializeDatabase = async () => {
 // Using 'southamerica-east1' (São Paulo) as the region.
 export const api = functions.region('southamerica-east1').https.onRequest(async (request: Request, response: Response) => {
     // Ensure the database is initialized before handling any request.
-    await initializeDatabase();
+    if (!dbInitialized) {
+        try {
+            await initDB();
+            dbInitialized = true;
+            console.log('Database connected successfully for Firebase Function.');
+        } catch (e: any) {
+            console.error('Database connection failed for Firebase Function:', e);
+            response.status(500).json({
+                error: 'Database connection failed',
+                message: e.message,
+                stack: e.stack,
+                config: process.env.FIREBASE_CONFIG ? 'Firebase Config Found' : 'No Firebase Config'
+            });
+            return;
+        }
+    }
     // Pass the request to the Express app.
     return app(request, response);
 });

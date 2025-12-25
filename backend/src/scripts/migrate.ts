@@ -1,5 +1,5 @@
 // Database migration script
-import { query } from '../config/database.js';
+import { query } from '../config/database';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,7 +17,7 @@ async function runMigrations() {
 
         // Read schema file
         if (!fs.existsSync(schemaPath)) {
-            throw new Error('schema.sql file not found');
+            throw new Error(`schema.sql file not found at ${schemaPath}`);
         }
 
         const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
@@ -29,11 +29,6 @@ async function runMigrations() {
             .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
 
         console.log(`📊 Found ${statements.length} statements after filtering`);
-
-        // Debug: print first few statements
-        statements.slice(0, 5).forEach((stmt, i) => {
-            console.log(`🔍 Statement ${i + 1}:`, stmt.substring(0, 100));
-        });
 
         console.log(`⚡ Executing ${statements.length} SQL statements...`);
 
@@ -50,12 +45,11 @@ async function runMigrations() {
         }
 
         console.log('🎉 Migration completed successfully!');
+        return { success: true, message: 'Migrations completed' };
 
     } catch (error) {
         console.error('❌ Migration failed:', error instanceof Error ? error.message : String(error));
-        process.exit(1);
-    } finally {
-        process.exit(0);
+        throw error;
     }
 }
 

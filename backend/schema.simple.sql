@@ -42,6 +42,16 @@ CREATE TABLE IF NOT EXISTS customers (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Configurações (settings)
+CREATE TABLE IF NOT EXISTS settings (
+    key VARCHAR(50) PRIMARY KEY,
+    value TEXT,
+    description VARCHAR(255),
+    is_system BOOLEAN DEFAULT false,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_by UUID
+);
+
 -- Vendas (simplificada)
 CREATE TABLE IF NOT EXISTS sales (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

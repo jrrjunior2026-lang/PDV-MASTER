@@ -11,15 +11,33 @@ export interface DatabaseConfig {
 }
 
 // Database configuration
-const getDBConfig = (): DatabaseConfig => ({
-  host: process.env.DATABASE_HOST || 'localhost',
-  port: parseInt(process.env.DATABASE_PORT || '5432'),
-  database: process.env.DATABASE_NAME || 'pdv_master',
-  user: process.env.DATABASE_USER || 'pdv_master_user',
-  password: process.env.DATABASE_PASSWORD || 'pdv_master_pass',
-  ssl: process.env.DATABASE_SSL === 'true',
-  maxConnections: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '10'),
-});
+// import * as functions from 'firebase-functions'; 
+
+const getDBConfig = (): DatabaseConfig => {
+  // Check if running in Firebase Functions environment (Cloud SQL)
+  // We use INSTANCE_CONNECTION_NAME to detect this
+  if (process.env.INSTANCE_CONNECTION_NAME) {
+    return {
+      host: `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`, // Unix socket path
+      port: 5432,
+      database: process.env.DB_NAME || 'pdv_master',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASS || 'postgres',
+      ssl: false,
+      maxConnections: 10,
+    };
+  }
+
+  return {
+    host: process.env.DATABASE_HOST || 'localhost',
+    port: parseInt(process.env.DATABASE_PORT || '5432'),
+    database: process.env.DATABASE_NAME || 'pdv_master',
+    user: process.env.DATABASE_USER || 'pdv_master_user',
+    password: process.env.DATABASE_PASSWORD || 'pdv_master_pass',
+    ssl: process.env.DATABASE_SSL === 'true',
+    maxConnections: parseInt(process.env.DATABASE_MAX_CONNECTIONS || '10'),
+  };
+};
 
 // Global database pool
 let pool: Pool;
@@ -29,19 +47,29 @@ export const connectDB = (): Pool => {
   if (!pool) {
     const config = getDBConfig();
 
-    pool = new Pool({
-      host: config.host,
-      port: config.port,
-      database: config.database,
+    const poolConfig: any = {
       user: config.user,
       password: config.password,
-      ssl: config.ssl,
+      database: config.database,
       max: config.maxConnections,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    });
+      connectionTimeoutMillis: 10000, // Increased timeout for cloud connections
+    };
 
-    console.log('📱 Database pool created');
+    // If INSTANCE_CONNECTION_NAME is present, use Unix socket (Cloud SQL)
+    // Otherwise use TCP (Localhost)
+    if (process.env.INSTANCE_CONNECTION_NAME && process.env.NODE_ENV === 'production') {
+      poolConfig.host = `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`;
+      // No port needed for socket connection
+    } else {
+      poolConfig.host = config.host;
+      poolConfig.port = config.port;
+      poolConfig.ssl = config.ssl ? { rejectUnauthorized: false } : false;
+    }
+
+    pool = new Pool(poolConfig);
+
+    console.log(`📱 Database pool created. Config: Host=${poolConfig.host}, DB=${poolConfig.database}, User=${poolConfig.user}`);
 
     // Handle pool errors
     pool.on('error', (err, client) => {

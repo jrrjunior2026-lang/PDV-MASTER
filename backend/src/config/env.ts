@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
+dotenv.config({ path: '.env.production' }); // Load production env if exists
 
 // Environment validation schema
 const envSchema = z.object({
@@ -102,9 +103,12 @@ try {
     if (!env.JWT_REFRESH_SECRET || env.JWT_REFRESH_SECRET.length < 64) {
       throw new Error('JWT_REFRESH_SECRET must be at least 64 characters in production');
     }
-    if (env.DATABASE_SSL === false) {
-      throw new Error('DATABASE_SSL must be enabled in production');
+
+    // Relax SSL check if using Cloud SQL Socket
+    if (env.DATABASE_SSL === false && !process.env.INSTANCE_CONNECTION_NAME) {
+      throw new Error('DATABASE_SSL must be enabled in production (unless using Cloud SQL Socket)');
     }
+
     if (env.DEBUG_MODE === true) {
       throw new Error('DEBUG_MODE must be disabled in production');
     }
@@ -145,7 +149,7 @@ export const isSecureMode = () => env.SECURITY_HELMET && (isProduction() || env.
 
 // Security audit helper
 export const getSecurityStatus = () => ({
-  jwtSecretLength: env.JWT_SECRET.length,
+  jwtSecretLength: env.JWT_SECRET ? env.JWT_SECRET.length : 0,
   refreshTokenEnabled: !!env.JWT_REFRESH_SECRET,
   bcryptRounds: env.BCRYPT_ROUNDS,
   databaseSSL: env.DATABASE_SSL,

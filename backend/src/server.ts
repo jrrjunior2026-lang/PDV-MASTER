@@ -17,8 +17,9 @@ import { settingRoutes } from './routes/settings.js';
 import { registerRoutes } from './routes/cashRegister.js';
 import { syncRoutes } from './routes/sync.js';
 import { reportRoutes } from './routes/reports.js';
+import adminRoutes from './routes/admin.js';
 import { auditMiddleware, errorHandler, notFoundHandler } from './middleware/index.js';
-import { connectDB, initDB } from './config/database.js';
+import { connectDB } from './config/database.js';
 
 const app = express();
 const PORT = env.PORT;
@@ -106,74 +107,41 @@ app.get('/api', (req, res) => {
         port: PORT,
         environment: process.env.NODE_ENV || 'development',
         routes: {
-            auth: {
-                path: '/api/auth',
-                description: 'Autenticação e autorização',
-                endpoints: ['POST /login', 'POST /register', 'GET /profile']
-            },
-            products: {
-                path: '/api/products',
-                description: 'Gestão de produtos e estoque',
-                endpoints: ['GET /', 'POST /', 'PUT /:id', 'DELETE /:id']
-            },
-            customers: {
-                path: '/api/customers',
-                description: 'Gestão de clientes',
-                endpoints: ['GET /', 'POST /', 'PUT /:id', 'DELETE /:id']
-            },
-            sales: {
-                path: '/api/sales',
-                description: 'Gestão de vendas e transações',
-                endpoints: ['GET /', 'POST /', 'PUT /:id', 'GET /:id/items']
-            },
-            finance: {
-                path: '/api/finance',
-                description: 'Relatórios financeiros e controle financeiro',
-                endpoints: ['GET /', 'POST /', 'GET /summary/dashboard']
-            },
-            register: {
-                path: '/api/register',
-                description: 'Controle de caixas PDV',
-                endpoints: ['POST /open', 'POST /:id/close', 'GET /current']
-            },
-            sync: {
-                path: '/api/sync',
-                description: 'Sincronização offline/online',
-                endpoints: ['GET /', 'POST /push']
-            },
-            reports: {
-                path: '/api/reports',
-                description: 'Relatórios de negócio',
-                endpoints: ['GET /', 'GET /sales']
-            },
-            settings: {
-                path: '/api/settings',
-                description: 'Configurações do sistema',
-                endpoints: ['GET /', 'PUT /:key']
-            }
-        },
-        system: {
-            frontend: "http://localhost:3000",
-            backend: `http://localhost:${PORT}`,
-            health: `http://localhost:${PORT}/health`,
-            database: "PostgreSQL (Docker)"
+            auth: { path: '/api/auth', description: 'Autenticação e autorização' },
+            products: { path: '/api/products', description: 'Gestão de produtos e estoque' },
+            customers: { path: '/api/customers', description: 'Gestão de clientes' },
+            sales: { path: '/api/sales', description: 'Gestão de vendas e transações' },
+            finance: { path: '/api/finance', description: 'Relatórios financeiros' },
+            register: { path: '/api/register', description: 'Controle de caixas PDV' },
+            sync: { path: '/api/sync', description: 'Sincronização offline/online' },
+            reports: { path: '/api/reports', description: 'Relatórios de negócio' },
+            settings: { path: '/api/settings', description: 'Configurações do sistema' }
         }
     });
 });
 
-// API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/customers', customerRoutes);
-app.use('/api/sales', saleRoutes);
-app.use('/api/finance', financeRoutes);
-app.use('/api/settings', settingRoutes);
-app.use('/api/register', registerRoutes);
-app.use('/api/sync', syncRoutes);
-app.use('/api/reports', reportRoutes);
+// === API ROUTER SETUP ===
+const apiRouter = express.Router();
 
-// Audit middleware for API routes
-app.use('/api', auditMiddleware);
+// Audit middleware for all API routes
+apiRouter.use(auditMiddleware);
+
+// Register routes on the API router (without /api prefix)
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/products', productRoutes);
+apiRouter.use('/customers', customerRoutes);
+apiRouter.use('/sales', saleRoutes);
+apiRouter.use('/finance', financeRoutes);
+apiRouter.use('/settings', settingRoutes);
+apiRouter.use('/register', registerRoutes);
+apiRouter.use('/sync', syncRoutes);
+apiRouter.use('/reports', reportRoutes);
+apiRouter.use('/admin', adminRoutes);
+
+// Mount the API router at both /api (for local) and / (for Firebase)
+// This ensures that requests to .../api/settings work in both environments
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
 
 // 404 handler
 app.use(notFoundHandler);
@@ -184,19 +152,13 @@ app.use(errorHandler);
 // Graceful shutdown
 process.on('SIGINT', async () => {
     console.log('\n🛑 Recebido SIGINT. Encerrando servidor...');
-
-    // Close database connections
     await connectDB().end();
-
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
     console.log('\n🛑 Recebido SIGTERM. Encerrando servidor...');
-
-    // Close database connections
     await connectDB().end();
-
     process.exit(0);
 });
 
