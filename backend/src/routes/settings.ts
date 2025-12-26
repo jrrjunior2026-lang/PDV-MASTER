@@ -122,17 +122,17 @@ router.post('/certificate', [
         // We save the actual content as base64 instead of a file path
         console.log(`[CERT_UPLOAD] Salvando conteúdo do certificado no BD: key='nfce_cert_data'`);
         await query(
-            `INSERT INTO settings (key, value) VALUES ($1, $2)
+            `INSERT INTO settings (key, value) VALUES ($1, to_jsonb($2::text))
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-            ['nfce_cert_data', JSON.stringify(certBase64)]
+            ['nfce_cert_data', certBase64]
         );
         console.log('[CERT_UPLOAD] Conteúdo do certificado salvo no BD.');
 
         console.log('[CERT_UPLOAD] Salvando senha criptografada no BD: key=nfce_cert_password');
         await query(
-            `INSERT INTO settings (key, value) VALUES ($1, $2)
+            `INSERT INTO settings (key, value) VALUES ($1, to_jsonb($2::text))
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-            ['nfce_cert_password', JSON.stringify(encryptedPassword)]
+            ['nfce_cert_password', encryptedPassword]
         );
         console.log('[CERT_UPLOAD] Senha criptografada salva no BD.');
 
@@ -174,9 +174,9 @@ router.post('/logo', [
         console.log(`[LOGO_UPLOAD] Salvando logo no BD: key='app_logo_path'`);
         // Note: We keep the key 'app_logo_path' for compatibility, but now it stores the actual data URI
         await query(
-            `INSERT INTO settings (key, value) VALUES ($1, $2)
+            `INSERT INTO settings (key, value) VALUES ($1, to_jsonb($2::text))
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-            ['app_logo_path', JSON.stringify(base64Image)]
+            ['app_logo_path', base64Image]
         );
         console.log('[LOGO_UPLOAD] Logo salva no BD.');
 
@@ -188,10 +188,17 @@ router.post('/logo', [
 
     } catch (error) {
         console.error('[LOGO_UPLOAD] Erro no upload da logo:', error);
+        if (error instanceof Error) {
+            console.error('[LOGO_UPLOAD] Mensagem de erro:', error.message);
+            console.error('[LOGO_UPLOAD] Stack trace:', error.stack);
+        }
         if (error instanceof Error && error.message.includes('Formato de imagem inválido')) {
             return res.status(400).json({ error: error.message });
         }
-        res.status(500).json({ error: 'Erro no upload da logo' });
+        res.status(500).json({
+            error: 'Erro no upload da logo',
+            details: error instanceof Error ? error.message : String(error)
+        });
     }
 });
 

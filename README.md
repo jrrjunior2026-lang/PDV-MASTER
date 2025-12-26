@@ -32,83 +32,47 @@ PDV Master é um sistema completo de ponto de venda (PDV) desenvolvido para esta
 
 ---
 
-## 🚀 **Execução Rápida**
-
-### **Requisitos**
-- **Node.js** 18+ e **npm**
-- **PostgreSQL** 15+ (ou Docker)
-- **Git**
-
-### **1. Clonagem e Dependências**
-```bash
-git clone <repository-url>
-cd pdv-master
-
-# Instalar dependências frontend
-npm install
-
-# Instalar dependências backend
-cd backend && npm install && cd ..
-```
-
-### **2. Banco de Dados**
-```bash
-# Com Docker (Recomendado)
-docker-compose up postgres pgadmin -d
-
-# OU instalar PostgreSQL localmente
-```
-
-### **3. Configuração**
-```bash
-# Copiar arquivo de ambiente (backend)
-cp backend/.env.example backend/.env
-
-# Editar configurações se necessário
-# DATABASE_HOST=localhost
-# DATABASE_PASSWORD=pdv_master_pass
-```
-
-### **4. Migração do Banco**
-```bash
-cd backend
-npm run db:migrate
-```
-
-### **5. Executar Aplicação**
-```bash
-# Terminal 1 - Backend
-cd backend && npm run dev
-
-# Terminal 2 - Frontend
-npm run dev
-```
-
-### **6. Acessar**
-- **Aplicação:** http://localhost:3000
-- **pgAdmin:** http://localhost:5050 (se usando Docker)
-- **API Backend:** http://localhost:3001
-
----
-
 ## 🏗️ **Arquitetura**
 
 ```
 PDV-MASTER/
-├── components/          # Componentes React reutilizáveis
-├── pages/              # Páginas da aplicação
-├── services/           # Serviços de negócio
-├── hooks/              # Hooks customizados
-├── types.ts            # Definições TypeScript
-└── backend/            # API Backend
-    ├── src/
-    │   ├── config/     # Configurações (DB, CORS, etc.)
-    │   ├── middleware/ # Middlewares Express
-    │   ├── routes/     # Rotas da API
-    │   ├── services/   # Lógica de negócio
-    │   ├── scripts/    # Scripts utilitários
-    │   └── server.ts    # Servidor principal
-    └── schema.sql      # Estrutura do banco
+├── frontend/           # Aplicação React (Vite)
+│   ├── src/            # Código fonte
+│   ├── components/     # Componentes reutilizáveis
+│   ├── pages/          # Páginas da aplicação
+│   └── services/       # Integração com API
+├── backend/            # API Node.js (Express)
+│   ├── src/            # Código fonte
+│   ├── database/       # Scripts SQL e Seeds
+│   └── firebase/       # Configurações Firebase
+├── scripts/            # Scripts de utilidade
+├── docker-compose.yml  # Orquestração para desenvolvimento
+└── package.json        # Gerenciamento de workspace
+```
+
+---
+
+## 🚀 **Execução Rápida**
+
+### **1. Instalação**
+```bash
+# Instala tudo (root, backend e frontend)
+npm run install:all
+```
+
+### **2. Desenvolvimento**
+```bash
+# Terminal 1 - Backend
+npm run dev:backend
+
+# Terminal 2 - Frontend
+npm run dev:frontend
+```
+
+### **3. Produção com Docker**
+```bash
+# Sobe todo o ambiente (DB, Redis, Backend, Frontend)
+docker-compose -f docker-compose.prod.yml up --build -d
 ```
 
 ### **Tecnologias Utilizadas**

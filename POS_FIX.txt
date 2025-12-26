@@ -1,0 +1,13 @@
+// Quick fix para POS.tsx - Adicione um loading check no início do componente
+
+// Logo após a linha 337 (antes do return), adicione:
+if (!settings) {
+  return <div className="h-full flex items-center justify-center bg-slate-900 text-white">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+      <p>Carregando configurações...</p>
+    </div>
+  </div>;
+}
+
+// Isso evita que o componente tente acessar settings.company quando settings é null

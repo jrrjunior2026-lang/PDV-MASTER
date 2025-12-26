@@ -67,9 +67,11 @@ export const connectDB = (): Pool => {
       poolConfig.ssl = config.ssl ? { rejectUnauthorized: false } : false;
     }
 
-    pool = new Pool(poolConfig);
+    const poolConfigToLog = { ...poolConfig };
+    delete poolConfigToLog.password;
+    console.log('🔌 Database pool created. Config:', JSON.stringify(poolConfigToLog, null, 2));
 
-    console.log(`📱 Database pool created. Config: Host=${poolConfig.host}, DB=${poolConfig.database}, User=${poolConfig.user}`);
+    pool = new Pool(poolConfig);
 
     // Handle pool errors
     pool.on('error', (err, client) => {

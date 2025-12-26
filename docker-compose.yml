@@ -10,16 +10,16 @@ services:
       POSTGRES_PASSWORD: pdv_master_pass
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/setup-db.sql:/docker-entrypoint-initdb.d/01-setup.sql
-      - ./backend/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql
-      - ./backend/fix-db.sql:/docker-entrypoint-initdb.d/03-fix.sql
-      - ./backend/seed.js:/docker-entrypoint-initdb.d/04-seed.js
+      - ./backend/database/setup-db.sql:/docker-entrypoint-initdb.d/01-setup.sql
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql
+      - ./backend/database/fix-db.sql:/docker-entrypoint-initdb.d/03-fix.sql
+      - ./backend/database/seed.js:/docker-entrypoint-initdb.d/04-seed.js
     ports:
       - "5432:5432"
     networks:
       - pdv-master
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pdv_master_user -d pdv_master"]
+      test: [ "CMD-SHELL", "pg_isready -U pdv_master_user -d pdv_master" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -94,7 +94,7 @@ services:
     networks:
       - pdv-master
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health", "||", "exit", "1"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3001/health", "||", "exit", "1" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -103,8 +103,8 @@ services:
   # Frontend React
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: pdv-master-frontend
     restart: unless-stopped
     environment:
@@ -122,6 +122,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+
 
 networks:
   pdv-master:

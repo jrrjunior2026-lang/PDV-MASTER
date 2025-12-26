@@ -64,6 +64,10 @@ export const sqlInjectionProtection = (req: Request, res: Response, next: NextFu
 
   const checkValue = (value: any): boolean => {
     if (typeof value === 'string') {
+      // Skip SQL injection check for Base64 images/data URIs
+      if (value.startsWith('data:image/') || value.length > 2000) {
+        return false;
+      }
       return dangerousPatterns.some(pattern => pattern.test(value));
     }
     if (Array.isArray(value)) {
