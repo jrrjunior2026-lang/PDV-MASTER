@@ -125,31 +125,6 @@ docker-compose -f docker-compose.prod.yml up --build -d
 
 ---
 
-## 🔧 **Configurações Avançadas**
-
-### **Variáveis de Ambiente**
-
-#### **Backend (.env)**
-```env
-# Servidor
-PORT=3001
-NODE_ENV=development
-
-# Banco de Dados
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
-DATABASE_NAME=pdv_master
-DATABASE_USER=pdv_master_user
-DATABASE_PASSWORD=pdv_master_pass
-
-# Segurança
-JWT_SECRET=super-secret-jwt-key-change-in-production
-BCRYPT_ROUNDS=12
-
-# NFC-e (Produção)
-CSC_ID=000001
-CSC_TOKEN=token-aqui
-```
 
 #### **NFC-e Produção**
 1. Cadastre-se no SEFAZ do seu estado
