@@ -64,11 +64,16 @@ export const Settings: React.FC = () => {
         setAlertState({ isOpen: true, message, title, type });
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setLoading(true);
-        StorageService.saveSettings(settings);
-        setLoading(false);
-        showAlert('Configurações salvas com sucesso!', 'Sucesso', 'success');
+        try {
+            await StorageService.saveSettings(settings);
+            showAlert('Configurações salvas com sucesso!', 'Sucesso', 'success');
+        } catch (error: any) {
+            showAlert(error.message || 'Erro ao salvar configurações.', 'Erro', 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,15 +151,19 @@ export const Settings: React.FC = () => {
             isOpen: true,
             title: 'Excluir Usuário',
             message: 'Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.',
-            onConfirm: () => {
-                StorageService.deleteUser(id);
-                refreshUsers();
-                showAlert('Usuário excluído.', 'Sucesso', 'success');
+            onConfirm: async () => {
+                try {
+                    await StorageService.deleteUser(id);
+                    await refreshUsers();
+                    showAlert('Usuário excluído.', 'Sucesso', 'success');
+                } catch (error: any) {
+                    showAlert(error.message || 'Erro ao excluir usuário.', 'Erro', 'error');
+                }
             }
         });
     };
 
-    const handleSaveUser = () => {
+    const handleSaveUser = async () => {
         if (!userForm.name || !userForm.email || !userForm.password) {
             return showAlert('Preencha todos os campos obrigatórios.');
         }
@@ -164,12 +173,16 @@ export const Settings: React.FC = () => {
             ...userForm
         };
 
-        StorageService.saveUser(userPayload);
-        setShowUserModal(false);
-        setEditingUser(null);
-        setUserForm({ name: '', email: '', password: '', role: 'CASHIER' });
-        refreshUsers();
-        showAlert(editingUser ? 'Usuário atualizado!' : 'Usuário criado com sucesso!', 'Sucesso', 'success');
+        try {
+            await StorageService.saveUser(userPayload);
+            setShowUserModal(false);
+            setEditingUser(null);
+            setUserForm({ name: '', email: '', password: '', role: 'CASHIER' });
+            await refreshUsers();
+            showAlert(editingUser ? 'Usuário atualizado!' : 'Usuário criado com sucesso!', 'Sucesso', 'success');
+        } catch (error: any) {
+            showAlert(error.message || 'Erro ao salvar usuário.', 'Erro', 'error');
+        }
     };
 
     const tabs = [

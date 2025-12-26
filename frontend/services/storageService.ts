@@ -220,10 +220,22 @@ export const StorageService = {
 
     if (itemsError) throw itemsError;
 
+    // Registrar no Kardex para cada item
     for (const item of sale.items) {
-      await supabase.rpc('decrement_stock', {
-        p_id: item.id,
-        p_qty: item.qty
+      // Buscar estoque atual para calcular balance_after (opcional se o trigger for inteligente, 
+      // mas bom para o registro do Kardex ser preciso no momento da inserção)
+      const { data: prod } = await supabase.from('products').select('stock').eq('id', item.id).single();
+      const currentStock = prod?.stock || 0;
+      const balanceAfter = currentStock - item.qty;
+
+      await supabase.from('kardex').insert({
+        product_id: item.id,
+        type: 'SALE',
+        quantity: item.qty,
+        balance_after: balanceAfter,
+        sale_id: sale.id,
+        register_id: sale.registerId,
+        description: `Venda #${sale.id.slice(0, 8)}`
       });
     }
 
@@ -314,7 +326,7 @@ export const StorageService = {
       .select('*')
       .eq('operator_id', operatorId)
       .eq('status', 'OPEN')
-      .single();
+      .maybeSingle();
 
     if (error || !data) return null;
     return {
@@ -334,7 +346,7 @@ export const StorageService = {
       .eq('status', 'CLOSED')
       .order('closed_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle(); // Use maybeSingle to avoid error if no closed register exists
 
     if (error || !data) return null;
     return {
@@ -350,7 +362,7 @@ export const StorageService = {
     };
   },
 
-  openRegister: async (openingBalance: number, operatorId: string) => {
+  openRegister: async (openingBalance: number, operatorId: string): Promise<ICashRegister> => {
     const { data, error } = await supabase
       .from('cash_registers')
       .insert({
@@ -365,15 +377,43 @@ export const StorageService = {
 
     if (error) throw error;
     AuditService.log('REGISTER_OPEN', `Caixa aberto no Supabase com R$ ${openingBalance.toFixed(2)}`, 'INFO');
-    return data;
+
+    return {
+      id: data.id,
+      status: data.status,
+      openedAt: data.opened_at,
+      openingBalance: Number(data.opening_balance),
+      currentBalance: Number(data.current_balance),
+      operatorId: data.operator_id
+    };
   },
 
   closeRegister: async (registerId: string, userCountedAmount: number): Promise<void> => {
-    const { data: summary, error: summaryError } = await supabase.rpc('get_register_summary', { p_register_id: registerId });
-    if (summaryError) throw summaryError;
+    console.log('Iniciando fechamento de caixa:', { registerId, userCountedAmount });
 
+    const { data: summaryArray, error: summaryError } = await supabase.rpc('get_register_summary', { p_register_id: registerId });
+
+    if (summaryError) {
+      console.error('Erro no RPC get_register_summary:', summaryError);
+      throw summaryError;
+    }
+
+    if (!summaryArray || summaryArray.length === 0) {
+      console.error('Resumo do caixa não encontrado para o ID:', registerId);
+      throw new Error('Register summary not found');
+    }
+
+    const summary = summaryArray[0];
     const systemBalance = Number(summary.calculated_balance);
     const difference = userCountedAmount - systemBalance;
+
+    console.log('Resumo obtido:', { systemBalance, difference });
+
+    const user = StorageService.getCurrentUser();
+    if (!user?.id) {
+      console.error('Usuário não autenticado ao tentar fechar o caixa');
+      throw new Error('User not authenticated');
+    }
 
     const { error: updateError } = await supabase
       .from('cash_registers')
@@ -384,9 +424,13 @@ export const StorageService = {
         difference: difference,
         current_balance: systemBalance
       })
-      .eq('id', registerId);
+      .eq('id', registerId)
+      .eq('operator_id', user.id);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('Erro ao atualizar cash_registers:', updateError);
+      throw updateError;
+    }
 
     AuditService.log('REGISTER_CLOSE', `Caixa fechado. Diferença: R$ ${difference.toFixed(2)}`, difference !== 0 ? 'WARNING' : 'INFO');
   },
@@ -394,7 +438,8 @@ export const StorageService = {
   getRegisterSummary: async (registerId: string) => {
     const { data, error } = await supabase.rpc('get_register_summary', { p_register_id: registerId });
     if (error) throw error;
-    return data;
+    // RPC functions that return TABLE return an array, so we get the first element
+    return data && data.length > 0 ? data[0] : null;
   },
 
   addCashTransaction: async (tx: ICashTransaction) => {
@@ -455,13 +500,66 @@ export const StorageService = {
 
   // --- KARDEX (TODO: Implement properly) ---
   getKardex: async (): Promise<IKardexEntry[]> => {
-    // TODO: Implement kardex entries from Supabase
-    return [];
+    const { data, error } = await supabase
+      .from('kardex')
+      .select('*, product:products(name, code)')
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao buscar Kardex:', error);
+      return [];
+    }
+
+    return data.map(entry => ({
+      id: entry.id,
+      productId: entry.product_id,
+      productName: entry.product?.name, // Nome vindo do join no Supabase
+      date: entry.date,
+      type: entry.type as TransactionType,
+      quantity: Number(entry.quantity),
+      balanceAfter: Number(entry.balance_after),
+      documentRef: entry.document_ref,
+      description: entry.description
+    }));
   },
 
   updateStock: async (productId: string, quantity: number, type: TransactionType, documentRef: string, notes?: string) => {
-    // TODO: Implement stock update with kardex entry
-    console.log('updateStock called:', { productId, quantity, type, documentRef, notes });
+    console.log('Iniciando atualização de estoque:', { productId, quantity, type, documentRef });
+
+    // Buscar estoque atual
+    const { data: prod, error: prodError } = await supabase
+      .from('products')
+      .select('stock')
+      .eq('id', productId)
+      .single();
+
+    if (prodError) throw prodError;
+
+    const currentStock = Number(prod.stock || 0);
+    let balanceAfter = currentStock;
+
+    if (type === TransactionType.SALE) {
+      balanceAfter = currentStock - quantity;
+    } else if (type === TransactionType.ENTRY) {
+      balanceAfter = currentStock + quantity;
+    } else if (type === TransactionType.ADJUSTMENT) {
+      balanceAfter = quantity; // No ajuste, quantity é o novo saldo
+    }
+
+    const { error: kardexError } = await supabase
+      .from('kardex')
+      .insert({
+        product_id: productId,
+        type: type,
+        quantity: type === TransactionType.ADJUSTMENT ? 0 : quantity,
+        balance_after: balanceAfter,
+        document_ref: documentRef,
+        description: notes || (type === TransactionType.ENTRY ? 'Entrada de Estoque' : 'Ajuste de Estoque')
+      });
+
+    if (kardexError) throw kardexError;
+
+    AuditService.log('STOCK_UPDATE', `Estoque atualizado para o produto ${productId}. Novo saldo: ${balanceAfter}`, 'INFO');
   },
 
   saveProductsBatch: async (products: IProduct[]) => {

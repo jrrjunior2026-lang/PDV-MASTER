@@ -93,7 +93,7 @@ export const Inventory: React.FC = () => {
         }
     };
 
-    const saveProduct = () => {
+    const saveProduct = async () => {
         if (!newProd.name || !newProd.code) return;
         const prod: IProduct = {
             id: crypto.randomUUID(),
@@ -109,15 +109,20 @@ export const Inventory: React.FC = () => {
             taxGroup: newProd.taxGroup as any || 'A',
             unit: newProd.unit as any || 'UN',
         };
-        StorageService.saveProduct(prod);
-        // Initial Stock Movement
-        if (prod.stock > 0) {
-            StorageService.updateStock(prod.id, prod.stock, TransactionType.ENTRY, 'INIT', 'Estoque Inicial');
+
+        try {
+            await StorageService.saveProduct(prod);
+            // Initial Stock Movement
+            if (prod.stock > 0) {
+                await StorageService.updateStock(prod.id, prod.stock, TransactionType.ENTRY, 'INIT', 'Estoque Inicial');
+            }
+            setShowAddModal(false);
+            setNewProd({});
+            setAuditResult(null);
+            await refreshData();
+        } catch (error: any) {
+            showAlert(error.message || 'Erro ao salvar produto.', 'Erro', 'error');
         }
-        setShowAddModal(false);
-        setNewProd({});
-        setAuditResult(null);
-        refreshData();
     };
 
     // CSV Handlers
@@ -140,17 +145,21 @@ export const Inventory: React.FC = () => {
                     isOpen: true,
                     title: 'Importação de Dados',
                     message: `Encontrados ${parsedProducts.length} produtos. Deseja importar? \n(Códigos existentes serão atualizados)`,
-                    onConfirm: () => {
+                    onConfirm: async () => {
                         const validProducts = parsedProducts.map(p => ({
                             ...p,
                             id: p.id || crypto.randomUUID(),
                             stock: p.stock || 0
                         })) as IProduct[];
 
-                        StorageService.saveProductsBatch(validProducts);
-                        refreshData();
-                        setShowImportModal(false);
-                        showAlert('Importação concluída com sucesso!', 'Sucesso', 'success');
+                        try {
+                            await StorageService.saveProductsBatch(validProducts);
+                            await refreshData();
+                            setShowImportModal(false);
+                            showAlert('Importação concluída com sucesso!', 'Sucesso', 'success');
+                        } catch (error: any) {
+                            showAlert(error.message || 'Erro ao importar produtos.', 'Erro', 'error');
+                        }
                     }
                 });
             } else {
@@ -306,7 +315,7 @@ export const Inventory: React.FC = () => {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {kardex.map(k => {
-                                    const prodName = products.find(p => p.id === k.productId)?.name || 'Desconhecido';
+                                    const prodName = products.find(p => p.id === k.productId)?.name || k.productName || 'Desconhecido';
                                     const isEntry = k.type === TransactionType.ENTRY || k.type === TransactionType.ADJUSTMENT && k.quantity > 0;
                                     return (
                                         <tr key={k.id} className="hover:bg-slate-50 transition">

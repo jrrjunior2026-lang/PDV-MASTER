@@ -65,7 +65,7 @@ export const useCashRegister = () => {
 
     if (!register) return;
 
-    StorageService.addCashTransaction({
+    await StorageService.addCashTransaction({
       id: crypto.randomUUID(),
       registerId: register.id,
       type: type,
@@ -117,9 +117,9 @@ export const useCashRegister = () => {
     return closedReg;
   }, [closingCount, register]);
 
-  const resetAndPrepareForNewRegister = () => {
+  const resetAndPrepareForNewRegister = async () => {
     setClosedRegisterData(null);
-    const lastClosed = StorageService.getLastClosedRegister();
+    const lastClosed = await StorageService.getLastClosedRegister();
     setLastClosedRegister(lastClosed);
     setModal('OPEN_BOX');
   };

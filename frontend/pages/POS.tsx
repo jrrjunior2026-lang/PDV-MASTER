@@ -283,8 +283,8 @@ export const POS: React.FC = () => {
         }
     };
 
-    const handleConfirmCloseRegister = () => {
-        const closedReg = cashRegister.executeCloseRegister();
+    const handleConfirmCloseRegister = async () => {
+        const closedReg = await cashRegister.executeCloseRegister();
         if (closedReg) {
             setPrintType('CLOSING');
             setActiveModal('PRINT_RECEIPT');
@@ -589,7 +589,9 @@ export const POS: React.FC = () => {
                             <div className="grid grid-cols-2 gap-4 mb-6">
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                     <p className="text-xs text-slate-400 font-bold uppercase mb-1">Operador</p>
-                                    <p className="font-bold text-slate-700 flex items-center gap-2"><User size={16} /> ADMIN</p>
+                                    <p className="font-bold text-slate-700 flex items-center gap-2">
+                                        <User size={16} /> {StorageService.getCurrentUser()?.name || 'ADMIN'}
+                                    </p>
                                 </div>
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                     <p className="text-xs text-slate-400 font-bold uppercase mb-1">Saldo Anterior</p>
@@ -685,7 +687,13 @@ export const POS: React.FC = () => {
                                     </>
                                 ) : (cashRegister.closedRegisterData && (
                                     <>
-                                        <div className="text-center mb-4"><h2 className="font-bold text-sm uppercase">Relatório de Fechamento</h2><p>Caixa: {cashRegister.closedRegisterData.id.slice(0, 8)}</p><p>Operador: ADMIN</p><p>Abertura: {new Date(cashRegister.closedRegisterData.openedAt).toLocaleString()}</p><p>Fechamento: {new Date(cashRegister.closedRegisterData.closedAt!).toLocaleString()}</p></div>
+                                        <div className="text-center mb-4">
+                                            <h2 className="font-bold text-sm uppercase">Relatório de Fechamento</h2>
+                                            <p>Caixa: {cashRegister.closedRegisterData.id.slice(0, 8)}</p>
+                                            <p>Operador: {StorageService.getCurrentUser()?.name || 'ADMIN'}</p>
+                                            <p>Abertura: {new Date(cashRegister.closedRegisterData.openedAt).toLocaleString()}</p>
+                                            <p>Fechamento: {new Date(cashRegister.closedRegisterData.closedAt!).toLocaleString()}</p>
+                                        </div>
                                         <hr className="border-dashed border-slate-300 my-2" />
                                         <div className="space-y-1"><div className="flex justify-between"><span>(+) Abertura</span><span>{formatCurrency(cashRegister.closedRegisterData.openingBalance)}</span></div><div className="flex justify-between font-bold mt-2"><span>(=) Saldo Sistema</span><span>{formatCurrency(cashRegister.closedRegisterData.currentBalance)}</span></div><div className="flex justify-between font-bold"><span>(=) Saldo Físico</span><span>{formatCurrency(cashRegister.closedRegisterData.finalCount || 0)}</span></div><hr className="border-dashed border-slate-300 my-2" /><div className="flex justify-between font-black text-xs"><span>DIFERENÇA</span><span>{formatCurrency(cashRegister.closedRegisterData.difference || 0)}</span></div></div>
                                         <div className="mt-8 text-center text-[9px] italic"><p>Conferido por: _______________________</p></div>

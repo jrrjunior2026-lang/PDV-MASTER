@@ -26,6 +26,7 @@ export interface IProduct {
 export interface IKardexEntry {
   id: string;
   productId: string;
+  productName?: string; // Nome do produto para exibição rápida
   date: string; // ISO
   type: TransactionType;
   quantity: number;
