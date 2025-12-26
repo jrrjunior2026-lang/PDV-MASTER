@@ -37,14 +37,20 @@ export const useCashRegister = () => {
     loadRegister();
   }, []);
 
-  const openRegister = useCallback(() => {
+  const openRegister = useCallback(async () => {
     const value = parseFloat(openingBalance.replace(',', '.'));
     if (isNaN(value)) {
       // Consider returning an error message
       return;
     }
 
-    const newReg = StorageService.openRegister(value, 'ADMIN'); // Assuming ADMIN user for now
+    const user = StorageService.getCurrentUser();
+    if (!user) {
+      console.error('No user logged in');
+      return;
+    }
+
+    const newReg = await StorageService.openRegister(value, user.id);
     setRegister(newReg);
     setModal('NONE');
     setOpeningBalance('');
@@ -85,27 +91,31 @@ export const useCashRegister = () => {
     // Consider returning a success message
   }, [transactionAmount, transactionReason, register]);
 
-  const initiateCloseRegister = useCallback(() => {
-    const summary = StorageService.getRegisterSummary();
+  const initiateCloseRegister = useCallback(async () => {
+    if (!register) return;
+    const summary = await StorageService.getRegisterSummary(register.id);
     setClosingSummary(summary);
     setClosingCount('');
     setModal('CLOSE_BOX');
-  }, []);
+  }, [register]);
 
-  const executeCloseRegister = useCallback(() => {
+  const executeCloseRegister = useCallback(async () => {
+    if (!register) return null;
     const count = parseFloat(closingCount.replace(',', '.'));
     if (isNaN(count)) {
       // Return error
       return null;
     }
-    const closedReg = StorageService.closeRegister(count);
+    await StorageService.closeRegister(register.id, count);
+    // After closing, get the updated register data
+    const closedReg = await StorageService.getLastClosedRegister();
     if (closedReg) {
       setClosedRegisterData(closedReg);
       setRegister(null);
       setModal('NONE');
     }
     return closedReg;
-  }, [closingCount]);
+  }, [closingCount, register]);
 
   const resetAndPrepareForNewRegister = () => {
     setClosedRegisterData(null);

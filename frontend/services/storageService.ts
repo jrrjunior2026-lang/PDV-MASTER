@@ -227,7 +227,7 @@ export const StorageService = {
       });
     }
 
-    AuditService.log('SALE_COMPLETE', `Venda #${sale.id.slice(0, 8)} salva no Supabase`, 'INFO');
+    AuditService.log('SALE_COMPLETE', `Venda #${sale.id?.slice(0, 8) || 'UNKNOWN'} salva no Supabase`, 'INFO');
     return sale;
   },
 

@@ -186,6 +186,18 @@ export const POS: React.FC = () => {
 
     const finalizeSale = async (method: 'CREDIT' | 'DEBIT' | 'CASH' | 'PIX', cashData?: { paid: number, change: number }) => {
         if (cartControl.cart.length === 0) return;
+
+        const user = StorageService.getCurrentUser();
+        if (!user) {
+            showAlert('Usuário não autenticado', 'Erro', 'error');
+            return;
+        }
+
+        if (!cashRegister.register) {
+            showAlert('Caixa não está aberto', 'Erro', 'error');
+            return;
+        }
+
         setProcessing(true);
 
         const accessKey = `352410${Math.floor(Math.random() * 100000000000000)}550010000000011000000001`;
@@ -199,7 +211,8 @@ export const POS: React.FC = () => {
             discount: 0,
             paymentMethod: method,
             fiscalStatus: isOffline ? 'OFFLINE' : 'AUTHORIZED',
-            operatorId: 'ADMIN',
+            operatorId: user.id,
+            registerId: cashRegister.register.id,
             accessKey: accessKey,
             customerId: selectedCustomer?.id,
             amountPaid: cashData?.paid,
