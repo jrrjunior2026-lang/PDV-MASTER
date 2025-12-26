@@ -40,32 +40,48 @@ export const apiService = {
         }
     },
 
-    // --- Certificate Upload using Supabase Edge Function ---
+    // --- Certificate Upload SIMPLIFICADO (sem Edge Function) ---
     uploadCertificate: async (certFile: File, password: string): Promise<{ message: string }> => {
         try {
-            // Read file as base64
-            const reader = new FileReader();
-            const certBase64 = await new Promise<string>((resolve, reject) => {
-                reader.onload = () => {
-                    const result = reader.result as string;
-                    const base64 = result.split(',')[1];
-                    resolve(base64);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(certFile);
-            });
+            // 1. Upload do certificado para o Storage
+            const fileName = `certificate-${Date.now()}.pfx`;
+            const filePath = `certificates/${fileName}`;
 
-            // Get current session
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) throw new Error('Não autenticado');
+            const { error: uploadError } = await supabase.storage
+                .from('assets')
+                .upload(filePath, certFile, {
+                    cacheControl: '3600',
+                    upsert: true
+                });
 
-            // Call Supabase Edge Function
-            const { data, error } = await supabase.functions.invoke('encrypt-certificate', {
-                body: { certBase64, password }
-            });
+            if (uploadError) throw uploadError;
 
-            if (error) throw error;
-            return data;
+            // 2. Converter senha para Base64 (ofuscação básica - NÃO É CRIPTOGRAFIA!)
+            const passwordBase64 = btoa(password);
+
+            // 3. Salvar a senha ofuscada
+            const { error: passError } = await supabase
+                .from('settings')
+                .upsert({
+                    key: 'nfce_cert_password',
+                    value: passwordBase64,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+
+            if (passError) throw passError;
+
+            // 4. Salvar o caminho do certificado
+            const { error: pathError } = await supabase
+                .from('settings')
+                .upsert({
+                    key: 'nfce_cert_path',
+                    value: filePath,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+
+            if (pathError) throw pathError;
+
+            return { message: 'Certificado salvo com sucesso!' };
         } catch (error: any) {
             console.error('Error uploading certificate:', error);
             throw new Error(error.message || 'Falha no upload do certificado.');
