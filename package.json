@@ -13,7 +13,8 @@
         "docker:down": "docker-compose down",
         "docker:prod": "docker-compose -f docker-compose.prod.yml up --build -d",
         "test:all": "npm run test --prefix backend && npm run test --prefix frontend",
-        "lint:all": "npm run lint --prefix backend && npm run lint --prefix frontend"
+        "lint:all": "npm run lint --prefix backend && npm run lint --prefix frontend",
+        "sync": "powershell -ExecutionPolicy Bypass -File ./sync-project.ps1"
     },
     "workspaces": [
         "backend",
