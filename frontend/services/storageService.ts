@@ -602,14 +602,45 @@ export const StorageService = {
     return data;
   },
 
-  // --- USER MANAGEMENT (TODO: Implement) ---
+  // --- USER MANAGEMENT ---
   saveUser: async (user: any) => {
-    // TODO: Implement user save
-    console.log('saveUser called:', user);
+    console.log('Salvando usuário no Supabase:', user);
+
+    const { error } = await supabase
+      .from('users')
+      .upsert({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        is_active: true,
+        updated_at: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('Erro ao salvar usuário:', error);
+      throw error;
+    }
+
+    AuditService.log('USER_SAVE', `Usuário ${user.name} (${user.role}) salvo/atualizado`, 'INFO');
   },
 
   deleteUser: async (userId: string) => {
-    // TODO: Implement user delete
-    console.log('deleteUser called:', userId);
+    console.log('Desativando usuário:', userId);
+
+    const { error } = await supabase
+      .from('users')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Erro ao desativar usuário:', error);
+      throw error;
+    }
+
+    AuditService.log('USER_DELETE', `Usuário desativado: ${userId}`, 'WARNING');
   }
 };
