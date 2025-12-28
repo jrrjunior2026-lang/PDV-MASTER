@@ -30,6 +30,7 @@
         "docker:db:reset": "docker-compose exec postgres psql -U pdv_master_user -d pdv_master -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'",
         "release:prepare": "npm run test:run && npm run lint && npm run type-check && npm run build",
         "predeploy": "npm run build",
+        "postbuild": "copy dist\\index.html dist\\404.html",
         "deploy": "gh-pages -d dist"
     },
     "dependencies": {
