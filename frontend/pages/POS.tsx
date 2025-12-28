@@ -258,6 +258,7 @@ export const POS: React.FC = () => {
         // Clear print area after a short delay
         setTimeout(() => {
             globalPrintArea.innerHTML = '';
+            closePrintModal();
         }, 500);
     };
 

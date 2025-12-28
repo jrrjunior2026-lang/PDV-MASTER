@@ -45,7 +45,11 @@ export const Badge: React.FC<{ children: React.ReactNode, color?: string }> = ({
   </span>
 );
 
-export const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+export const formatCurrency = (val: any) => {
+  const num = Number(val);
+  if (isNaN(num)) return 'R$ 0,00';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
+};
 
 /* --- New Modal Components --- */
 

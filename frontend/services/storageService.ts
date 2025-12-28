@@ -438,8 +438,18 @@ export const StorageService = {
   getRegisterSummary: async (registerId: string) => {
     const { data, error } = await supabase.rpc('get_register_summary', { p_register_id: registerId });
     if (error) throw error;
-    // RPC functions that return TABLE return an array, so we get the first element
-    return data && data.length > 0 ? data[0] : null;
+
+    if (data && data.length > 0) {
+      const row = data[0];
+      return {
+        opening: Number(row.opening_balance),
+        supply: Number(row.total_supplies),
+        bleed: Number(row.total_bleeds),
+        salesCash: Number(row.total_sales),
+        calculated: Number(row.calculated_balance)
+      };
+    }
+    return null;
   },
 
   addCashTransaction: async (tx: ICashTransaction) => {
