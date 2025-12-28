@@ -7,6 +7,8 @@ import { createPortal } from 'react-dom';
 import { Plus, Search, FileText, ArrowUpRight, ArrowDownLeft, AlertCircle, Download, Upload, FileSpreadsheet, Printer, X, Trash2, Tag, Eye, ChevronLeft } from 'lucide-react';
 import { GeminiService } from '../services/geminiService';
 import JsBarcode from 'jsbarcode';
+import { ImportNfeModal } from '../components/inventory/ImportNfeModal';
+
 
 // Barcode Component
 const BarcodeRenderer: React.FC<{ value: string; className?: string }> = ({ value, className }) => {
@@ -40,6 +42,7 @@ export const Inventory: React.FC = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [showLabelModal, setShowLabelModal] = useState(false);
+    const [showNfeModal, setShowNfeModal] = useState(false);
 
     // Custom Alert/Confirm States
     const [confirmState, setConfirmState] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void }>({
@@ -251,6 +254,9 @@ export const Inventory: React.FC = () => {
                     </Button>
                     <Button variant="secondary" onClick={() => setShowImportModal(true)}>
                         <FileSpreadsheet size={18} /> Excel/CSV
+                    </Button>
+                    <Button variant="secondary" onClick={() => setShowNfeModal(true)}>
+                        <FileText size={18} /> Importar NF-e
                     </Button>
                     <Button onClick={() => setShowAddModal(true)}>
                         <Plus size={18} /> Novo Produto
@@ -715,6 +721,15 @@ export const Inventory: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ImportNfeModal
+                isOpen={showNfeModal}
+                onClose={() => setShowNfeModal(false)}
+                onSuccess={() => {
+                    refreshData();
+                    showAlert('Entrada de NF-e processada com sucesso!', 'Sucesso', 'success');
+                }}
+            />
         </div>
     );
 };

@@ -1,4 +1,4 @@
-import { IProduct, IKardexEntry, ISale, TransactionType, ICustomer, IFinancialRecord, IUser, ISettings, ICashRegister, ICashTransaction } from '../types';
+import { IProduct, IKardexEntry, ISale, TransactionType, ICustomer, IFinancialRecord, IUser, ISettings, ICashRegister, ICashTransaction, ISupplier } from '../types';
 import { AuditService } from './auditService';
 import { supabase } from './supabaseClient';
 
@@ -280,6 +280,63 @@ export const StorageService = {
     if (error) throw error;
     AuditService.log('CUSTOMER_UPDATE', `Cliente salvo no Supabase: ${customer.name}`, 'INFO');
   },
+
+  // --- SUPPLIERS (SUPABASE) ---
+  getSuppliers: async (): Promise<ISupplier[]> => {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .order('name');
+
+    if (error) return [];
+    return data.map(s => ({
+      id: s.id,
+      name: s.name,
+      document: s.document,
+      email: s.email,
+      phone: s.phone,
+      address: s.address
+    }));
+  },
+
+  getSupplierByDocument: async (document: string): Promise<ISupplier | null> => {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('*')
+      .eq('document', document)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return {
+      id: data.id,
+      name: data.name,
+      document: data.document,
+      email: data.email,
+      phone: data.phone,
+      address: data.address
+    };
+  },
+
+  saveSupplier: async (supplier: Partial<ISupplier>) => {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .upsert({
+        id: supplier.id || undefined,
+        name: supplier.name,
+        document: supplier.document,
+        email: supplier.email,
+        phone: supplier.phone,
+        address: supplier.address,
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    AuditService.log('SUPPLIER_UPDATE', `Fornecedor salvo no Supabase: ${supplier.name}`, 'INFO');
+    return data;
+  },
+
 
   // --- FINANCE (SUPABASE) ---
   getFinancialRecords: async (): Promise<IFinancialRecord[]> => {

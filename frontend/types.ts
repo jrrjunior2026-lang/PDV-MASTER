@@ -158,3 +158,13 @@ export interface IAuditLog {
   severity: 'INFO' | 'WARNING' | 'CRITICAL';
   ip?: string;
 }
+
+export interface ISupplier {
+  id: string;
+  name: string;
+  document: string; // CNPJ
+  email?: string;
+  phone?: string;
+  address?: string;
+  synced?: number;
+}
