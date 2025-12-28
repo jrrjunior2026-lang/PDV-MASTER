@@ -1,16 +1,17 @@
 import React from 'react';
 
-export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'success' }> = ({ 
-  children, variant = 'primary', className = '', ...props 
+export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'ghost' }> = ({
+  children, variant = 'primary', className = '', ...props
 }) => {
-  const base = "px-4 py-2 rounded-md font-medium transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2";
+  const base = "px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 active:scale-95 disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center gap-3";
   const variants = {
-    primary: "bg-brand-600 text-white hover:bg-brand-700 shadow-md shadow-brand-200",
-    secondary: "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50",
-    danger: "bg-red-500 text-white hover:bg-red-600 shadow-md shadow-red-100",
-    success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-100"
+    primary: "bg-slate-900 text-white hover:bg-blue-600 shadow-xl hover:shadow-blue-200",
+    secondary: "bg-slate-100 text-slate-600 hover:bg-slate-200",
+    danger: "bg-red-500 text-white hover:bg-red-600 shadow-xl shadow-red-100",
+    success: "bg-emerald-500 text-white hover:bg-emerald-600 shadow-xl shadow-emerald-100",
+    ghost: "bg-transparent text-slate-400 hover:text-slate-900 hover:bg-slate-50"
   };
-  
+
   return (
     <button className={`${base} ${variants[variant]} ${className}`} {...props}>
       {children}
@@ -18,14 +19,13 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
   );
 };
 
-// FIX: Wrapped Input component with React.forwardRef to allow passing refs to the underlying input element.
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { label?: string }>(({ label, className = '', ...props }, ref) => (
-  <div className="flex flex-col gap-1 w-full">
-    {label && <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</label>}
-    <input 
+  <div className="flex flex-col gap-2 w-full">
+    {label && <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">{label}</label>}
+    <input
       ref={ref}
-      className={`border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-colors ${className}`}
-      {...props} 
+      className={`bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 focus:ring-8 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all font-bold text-slate-800 placeholder-slate-300 ${className}`}
+      {...props}
     />
   </div>
 ));
@@ -33,14 +33,14 @@ Input.displayName = "Input";
 
 
 export const Card: React.FC<{ children: React.ReactNode, title?: string, className?: string }> = ({ children, title, className = '' }) => (
-  <div className={`bg-white p-6 rounded-xl shadow-sm border border-slate-200 ${className}`}>
-    {title && <h3 className="text-lg font-bold text-slate-800 mb-4">{title}</h3>}
+  <div className={`bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 ${className}`}>
+    {title && <h3 className="text-xl font-black text-slate-900 mb-6 tracking-tight uppercase">{title}</h3>}
     {children}
   </div>
 );
 
 export const Badge: React.FC<{ children: React.ReactNode, color?: string }> = ({ children, color = 'bg-slate-100 text-slate-600' }) => (
-  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${color}`}>
+  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${color}`}>
     {children}
   </span>
 );
@@ -50,8 +50,8 @@ export const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { 
 /* --- New Modal Components --- */
 
 export const ModalOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
-     {children}
+  <div className="fixed inset-0 bg-slate-950/80 z-[60] flex items-center justify-center p-6 backdrop-blur-xl animate-fadeIn">
+    {children}
   </div>
 );
 
@@ -68,12 +68,16 @@ export const ConfirmModal: React.FC<{
   if (!isOpen) return null;
   return (
     <ModalOverlay>
-      <div className="bg-white rounded-xl w-full max-w-sm p-6 shadow-2xl animate-scaleIn">
-        <h3 className="text-xl font-bold text-slate-800 mb-2">{title}</h3>
-        <p className="text-slate-600 mb-6 leading-relaxed">{message}</p>
-        <div className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose}>{cancelText}</Button>
-          <Button variant={variant} onClick={() => { onConfirm(); onClose(); }}>{confirmText}</Button>
+      <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-[0_30px_100px_rgba(0,0,0,0.4)] animate-scaleIn border border-white/20">
+        <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">{title}</h3>
+        <p className="text-slate-500 mb-10 leading-relaxed font-medium">{message}</p>
+        <div className="flex flex-col gap-3">
+          <Button variant={variant === 'danger' ? 'danger' : 'primary'} onClick={() => { onConfirm(); onClose(); }} className="w-full py-5 text-lg">
+            {confirmText}
+          </Button>
+          <Button variant="ghost" onClick={onClose} className="w-full py-4">
+            {cancelText}
+          </Button>
         </div>
       </div>
     </ModalOverlay>
@@ -88,19 +92,28 @@ export const AlertModal: React.FC<{
   type?: 'success' | 'error' | 'info';
 }> = ({ isOpen, onClose, title, message, type = 'info' }) => {
   if (!isOpen) return null;
-  
-  const defaultTitle = type === 'error' ? 'Erro' : type === 'success' ? 'Sucesso' : 'Atenção';
-  
+
+  const defaultTitle = type === 'error' ? 'Ops! Algo deu errado' : type === 'success' ? 'Sucesso!' : 'Atenção';
+
   return (
     <ModalOverlay>
-      <div className="bg-white rounded-xl w-full max-w-sm p-6 shadow-2xl animate-scaleIn">
-        <h3 className={`text-xl font-bold mb-2 ${type === 'error' ? 'text-red-600' : 'text-slate-800'}`}>
-            {title || defaultTitle}
-        </h3>
-        <p className="text-slate-600 mb-6 leading-relaxed">{message}</p>
-        <div className="flex justify-end">
-          <Button onClick={onClose} variant={type === 'error' ? 'danger' : 'primary'}>OK</Button>
+      <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-[0_30px_100px_rgba(0,0,0,0.4)] animate-scaleIn border border-white/20 text-center">
+        <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-6 ${type === 'error' ? 'bg-red-50 text-red-500' : type === 'success' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500'}`}>
+          {type === 'error' ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+          ) : type === 'success' ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+          )}
         </div>
+        <h3 className={`text-2xl font-black mb-3 tracking-tight ${type === 'error' ? 'text-red-600' : 'text-slate-900'}`}>
+          {title || defaultTitle}
+        </h3>
+        <p className="text-slate-500 mb-10 leading-relaxed font-medium">{message}</p>
+        <Button onClick={onClose} variant={type === 'error' ? 'danger' : 'primary'} className="w-full py-5 text-lg">
+          OK, Entendi
+        </Button>
       </div>
     </ModalOverlay>
   );

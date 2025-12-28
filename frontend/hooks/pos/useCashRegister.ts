@@ -3,7 +3,8 @@ import { ICashRegister } from '../../types';
 import { StorageService } from '../../services/storageService';
 import { AuditService } from '../../services/auditService';
 
-type CashRegisterModal = 'NONE' | 'OPEN_BOX' | 'CLOSE_BOX' | 'SANGRIA' | 'SUPRIMENTO';
+type CashRegisterModal = 'NONE' | 'OPEN_BOX' | 'CLOSE_BOX' | 'GENERIC';
+type GenericType = 'SANGRIA' | 'SUPRIMENTO';
 
 export const useCashRegister = () => {
   const [register, setRegister] = useState<ICashRegister | null>(null);
@@ -11,9 +12,10 @@ export const useCashRegister = () => {
   const [modal, setModal] = useState<CashRegisterModal>('NONE');
 
   // Form states for modals
-  const [openingBalance, setOpeningBalance] = useState(''); // Formerly cashValue
-  const [transactionAmount, setTransactionAmount] = useState(''); // For sangria/suprimento
-  const [transactionReason, setTransactionReason] = useState(''); // For sangria/suprimento
+  const [openingBalance, setOpeningBalance] = useState('');
+  const [genericType, setGenericType] = useState<GenericType>('SUPRIMENTO');
+  const [genericValue, setGenericValue] = useState('');
+  const [genericNote, setGenericNote] = useState('');
 
   // Closing register states
   const [closingSummary, setClosingSummary] = useState<any>(null);
@@ -56,28 +58,29 @@ export const useCashRegister = () => {
     setOpeningBalance('');
   }, [openingBalance]);
 
-  const addCashTransaction = useCallback(async (type: 'BLEED' | 'SUPPLY') => {
-    const value = parseFloat(transactionAmount.replace(',', '.'));
-    if (isNaN(value) || !transactionReason) {
-      // Consider returning an error
+  const handleGenericAction = useCallback(async () => {
+    const value = parseFloat(genericValue.replace(',', '.'));
+    if (isNaN(value) || !genericNote) {
       return;
     }
 
     if (!register) return;
+
+    const type = genericType === 'SUPRIMENTO' ? 'SUPPLY' : 'BLEED';
 
     await StorageService.addCashTransaction({
       id: crypto.randomUUID(),
       registerId: register.id,
       type: type,
       amount: value,
-      description: transactionReason,
+      description: genericNote,
       date: new Date().toISOString()
     });
 
     AuditService.log(
       'CASH_OPERATION',
-      `${type === 'BLEED' ? 'Sangria' : 'Suprimento'}: ${value.toFixed(2)}. Motivo: ${transactionReason}`,
-      type === 'BLEED' ? 'WARNING' : 'INFO'
+      `${genericType}: ${value.toFixed(2)}. Motivo: ${genericNote}`,
+      genericType === 'SANGRIA' ? 'WARNING' : 'INFO'
     );
 
     const user = StorageService.getCurrentUser();
@@ -86,10 +89,20 @@ export const useCashRegister = () => {
       setRegister(updatedReg);
     }
     setModal('NONE');
-    setTransactionAmount('');
-    setTransactionReason('');
-    // Consider returning a success message
-  }, [transactionAmount, transactionReason, register]);
+    setGenericValue('');
+    setGenericNote('');
+  }, [genericValue, genericNote, genericType, register]);
+
+  const openGenericModal = useCallback((type: GenericType) => {
+    setGenericType(type);
+    setGenericValue('');
+    setGenericNote('');
+    setModal('GENERIC');
+  }, []);
+
+  const closeGenericModal = useCallback(() => {
+    setModal('NONE');
+  }, []);
 
   const initiateCloseRegister = useCallback(async () => {
     if (!register) return;
@@ -130,8 +143,9 @@ export const useCashRegister = () => {
     lastClosedRegister,
     modal,
     openingBalance,
-    transactionAmount,
-    transactionReason,
+    genericType,
+    genericValue,
+    genericNote,
     closingSummary,
     closingCount,
     closedRegisterData,
@@ -139,16 +153,19 @@ export const useCashRegister = () => {
     // State Setters
     setModal,
     setOpeningBalance,
-    setTransactionAmount,
-    setTransactionReason,
+    setGenericValue,
+    setGenericNote,
     setClosingCount,
 
     // Actions
     openRegister,
-    addCashTransaction,
+    handleGenericAction,
+    openGenericModal,
+    closeGenericModal,
     initiateCloseRegister,
     executeCloseRegister,
     resetAndPrepareForNewRegister,
+    closeRegister: initiateCloseRegister,
   };
 };
 

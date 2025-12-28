@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, CreditCard, CheckCircle, Wifi, WifiOff, RefreshCcw, Home, User, Menu, DollarSign, X, AlertOctagon, TrendingUp, TrendingDown, Lock, ChevronRight, Monitor, Printer, Package, Copy, Smartphone, FileText, Calendar, Clock, ChevronsLeft } from 'lucide-react';
+import { Search, CreditCard, CheckCircle, Wifi, WifiOff, RefreshCcw, Home, User, Menu, DollarSign, X, AlertOctagon, TrendingUp, TrendingDown, Lock, ChevronRight, Monitor, Printer, Package, Copy, Smartphone, FileText, Calendar, Clock, ChevronsLeft, PlusCircle, MinusCircle, Trash2, History, Settings as SettingsIcon } from 'lucide-react';
 
 import { StorageService } from '../services/storageService';
 import { IProduct, ICustomer, ISettings, ISale } from '../types';
@@ -240,37 +240,25 @@ export const POS: React.FC = () => {
     };
 
     const handlePrint = () => {
-        const printableArea = document.getElementById('printable-area');
-        console.log('Print request:', { printType, lastSale: !!lastSale, closedRegisterData: !!cashRegister.closedRegisterData, printableArea: !!printableArea });
+        // Get the preview element content
+        const previewElement = document.querySelector('.bg-white.shadow-2xl.w-\\[80mm\\]');
+        const globalPrintArea = document.getElementById('printable-area');
 
-        if (!printableArea) {
-            alert('Área de impressão não encontrada!');
-            return;
-        }
-        if (!printableArea.textContent?.trim()) {
-            alert('Não há conteúdo para imprimir!');
+        if (!previewElement || !globalPrintArea) {
+            showAlert('Erro ao preparar impressão.', 'Erro', 'error');
             return;
         }
 
-        const printWindow = window.open('', '_blank', 'width=600,height=400');
-        if (!printWindow) {
-            alert('Bloqueador de pop-ups! Permita pop-ups para imprimir.');
-            return;
-        }
+        // Inject content into global print area
+        globalPrintArea.innerHTML = previewElement.innerHTML;
 
-        const content = printableArea.innerHTML;
-        const styles = `
-          <style>
-              @page { size: 80mm auto; margin: 0; } body { font-family: monospace; font-size: 10px; line-height: 1.2; margin: 0; padding: 2mm; background: white; color: black; width: 80mm; box-sizing: border-box; } .text-center { text-align: center; } .text-right { text-align: right; } .text-left { text-align: left; } .font-bold { font-weight: bold; } .uppercase { text-transform: uppercase; } .dashed-line { border-bottom: 1px dashed black; margin: 3px 0; width: 100%; display: block; } table { width: 100%; border-collapse: collapse; font-size: 9px; } th, td { padding: 1px 0; } img { max-width: 70mm; height: auto; } @media print { html, body { margin: 0; padding: 1mm; } .dashed-line { page-break-inside: avoid; } }
-          </style>
-      `;
+        // Trigger print
+        window.print();
 
-        printWindow.document.write(`<!DOCTYPE html><html><head><title>Imprimir Recibo</title>${styles}</head><body>${content}</body></html>`);
-        printWindow.document.close();
-        printWindow.onload = () => {
-            printWindow.print();
-            printWindow.close();
-        };
+        // Clear print area after a short delay
+        setTimeout(() => {
+            globalPrintArea.innerHTML = '';
+        }, 500);
     };
 
     const closePrintModal = () => {
@@ -392,19 +380,30 @@ export const POS: React.FC = () => {
             />
 
             {/* TOP BAR */}
-            <header className="h-12 bg-blue-950 flex items-center justify-between px-4 shrink-0 z-30 shadow-md border-b border-blue-900">
-                <div className="flex items-center gap-4">
-                    <Link to="/" className="text-blue-200 hover:text-white transition"><Home size={18} /></Link>
-                    <div className="h-4 w-[1px] bg-blue-800"></div>
-                    <h1 className="font-bold text-sm tracking-wide text-blue-100 uppercase">{settings?.company?.fantasyName || 'PDV MASTER'}</h1>
-                </div>
-                <div className="flex items-center gap-4">
-                    <div className={`flex items-center gap-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${isOffline ? 'bg-red-900 text-red-200' : 'bg-emerald-900 text-emerald-200'}`}>
-                        {isOffline ? <WifiOff size={10} /> : <Wifi size={10} />}
-                        {isOffline ? 'OFFLINE' : 'ONLINE'}
+            <header className="h-14 bg-gradient-to-r from-blue-950 via-slate-900 to-blue-950 flex items-center justify-between px-6 shrink-0 z-30 shadow-xl border-b border-blue-800/50">
+                <div className="flex items-center gap-6">
+                    <Link to="/" className="text-blue-300 hover:text-white transition-all transform hover:scale-110 active:scale-95">
+                        <Home size={22} />
+                    </Link>
+                    <div className="h-6 w-[1px] bg-blue-800/50"></div>
+                    <div className="flex flex-col">
+                        <h1 className="font-black text-xs tracking-[0.2em] text-blue-100 uppercase drop-shadow-sm">
+                            {settings?.company?.fantasyName || 'PDV MASTER'}
+                        </h1>
+                        <span className="text-[9px] text-blue-400 font-bold tracking-wider uppercase">Sistema de Gestão ERP</span>
                     </div>
-                    <div className="text-xs text-blue-200 font-mono">
-                        CAIXA: {cashRegister.register?.id.slice(0, 4) || 'FECHADO'} | OP: ADMIN
+                </div>
+                <div className="flex items-center gap-6">
+                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-inner ${isOffline ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                        <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+                        {isOffline ? 'OFFLINE' : 'SISTEMA ONLINE'}
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-blue-200 font-mono bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-800/30">
+                        <span className="opacity-50">CAIXA:</span>
+                        <span className="font-bold text-blue-100">{cashRegister.register?.id.slice(0, 4) || 'FECHADO'}</span>
+                        <div className="w-[1px] h-3 bg-blue-800"></div>
+                        <span className="opacity-50">OP:</span>
+                        <span className="font-bold text-blue-100 uppercase">ADMIN</span>
                     </div>
                 </div>
             </header>
@@ -422,113 +421,131 @@ export const POS: React.FC = () => {
                 <div className="w-full md:w-1/2 flex flex-col bg-slate-50 relative border-l border-slate-300">
 
                     {/* 1. TOP BAR */}
-                    <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10 shadow-sm shrink-0">
-                        <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-full ${selectedCustomer ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400'}`}>
+                    <div className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 z-10 shadow-sm shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-2xl shadow-sm transition-all duration-300 ${selectedCustomer ? 'bg-blue-600 text-white rotate-3' : 'bg-slate-100 text-slate-400'}`}>
                                 <User size={24} />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold uppercase text-slate-400">Cliente Identificado</p>
-                                <p className={`font-bold text-lg leading-none truncate max-w-[200px] ${selectedCustomer ? 'text-blue-800' : 'text-slate-500'}`}>
+                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em] mb-0.5">Cliente Identificado</p>
+                                <p className={`font-black text-xl leading-none truncate max-w-[250px] transition-colors ${selectedCustomer ? 'text-slate-800' : 'text-slate-300'}`}>
                                     {selectedCustomer ? selectedCustomer.name : 'CONSUMIDOR FINAL'}
                                 </p>
                             </div>
                         </div>
                         <button
                             onClick={() => setActiveModal('CUSTOMER')}
-                            className="px-4 py-2 bg-slate-100 hover:bg-blue-50 text-blue-600 rounded text-xs font-bold uppercase transition border border-slate-200 hover:border-blue-200 whitespace-nowrap"
+                            className="group flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-blue-200 active:scale-95"
                         >
-                            Trocar (F2)
+                            <span>Trocar</span>
+                            <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px] group-hover:bg-white/30">F2</span>
                         </button>
                     </div>
 
                     {/* 2. MIDDLE: HERO LAST ITEM */}
-                    <div className="flex-1 flex flex-col justify-center items-center p-8 z-10 relative overflow-hidden">
-                        <p className="text-blue-500 font-bold uppercase tracking-widest text-xs mb-6 flex items-center gap-2 self-center">
-                            <Monitor size={16} /> Último Registro
+                    <div className="flex-1 flex flex-col justify-center items-center p-10 z-10 relative overflow-hidden bg-gradient-to-b from-slate-50 to-white">
+                        {/* Decorative Background Elements */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-50 rounded-full blur-[100px] opacity-50 pointer-events-none"></div>
+
+                        <p className="text-blue-600 font-black uppercase tracking-[0.3em] text-[10px] mb-8 flex items-center gap-3 self-center bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                            <Monitor size={14} className="animate-pulse" /> Último Registro
                         </p>
 
                         {lastItem ? (
-                            <div className="animate-slideInRight w-full max-w-2xl text-center">
-                                <h1 className="text-4xl md:text-3xl font-black text-slate-800 leading-snug mb-6 drop-shadow-sm uppercase break-words line-clamp-3 py-2 px-2">
+                            <div className="animate-slideInRight w-full max-w-2xl text-center relative z-10">
+                                <h1 className="text-5xl md:text-6xl font-black text-slate-900 leading-tight mb-8 drop-shadow-sm uppercase break-words line-clamp-2 py-2 px-4 tracking-tight">
                                     {lastItem.name}
                                 </h1>
-                                <div className="flex items-end justify-between border-t-2 border-slate-200 pt-6 px-4">
-                                    <div className="text-left">
-                                        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Valor Unitário</p>
-                                        <p className="text-2xl md:text-2xl font-bold text-slate-600">{formatCurrency(lastItem.price)}</p>
+                                <div className="flex items-center justify-center gap-12 border-t border-slate-100 pt-10">
+                                    <div className="text-center">
+                                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Unitário</p>
+                                        <p className="text-3xl font-bold text-slate-500">{formatCurrency(lastItem.price)}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Total Item</p>
-                                        <p className="text-3xl md:text-4xl font-black text-blue-600 tracking-tighter leading-none">{formatCurrency(lastItem.total)}</p>
+                                    <div className="w-[1px] h-12 bg-slate-100"></div>
+                                    <div className="text-center">
+                                        <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Total Item</p>
+                                        <p className="text-6xl font-black text-blue-600 tracking-tighter drop-shadow-md">{formatCurrency(lastItem.total)}</p>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-center opacity-20">
-                                <h1 className="text-6xl md:text-8xl font-black text-slate-400 uppercase tracking-widest">LIVRE</h1>
+                            <div className="text-center opacity-10 select-none">
+                                <h1 className="text-8xl md:text-[12rem] font-black text-slate-900 uppercase tracking-tighter leading-none">LIVRE</h1>
+                                <p className="text-2xl font-bold tracking-[1em] mt-4">AGUARDANDO PRODUTO</p>
                             </div>
                         )}
                     </div>
 
                     {/* 3. SEARCH BAR INTEGRATED */}
-                    <div className="px-8 pb-8 pt-4 z-20 shrink-0 w-full max-w-4xl mx-auto">
+                    <div className="px-10 pb-10 pt-4 z-20 shrink-0 w-full max-w-5xl mx-auto">
                         <form onSubmit={handleSearch} className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <Search className="text-blue-500 group-focus-within:text-blue-600" size={24} />
+                            <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                                <Search className="text-blue-500 group-focus-within:text-blue-600 transition-colors" size={28} />
                             </div>
                             <input
                                 ref={searchInputRef}
                                 value={search}
                                 onChange={handleInput}
-                                className="block w-full pl-12 pr-4 py-4 border-2 border-slate-300 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-xl font-bold transition shadow-md"
+                                className="block w-full pl-16 pr-6 py-6 border-2 border-slate-200 rounded-2xl leading-5 bg-white placeholder-slate-300 focus:outline-none focus:border-blue-500 focus:ring-8 focus:ring-blue-500/10 text-2xl font-black transition-all shadow-2xl group-hover:border-slate-300"
                                 placeholder="Digitar código ou nome (F1)"
                                 autoComplete="off"
                             />
-                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                                <kbd className="hidden sm:inline-block border border-slate-200 rounded px-2 text-sm font-sans font-medium text-slate-400">ENTER</kbd>
+                            <div className="absolute inset-y-0 right-0 pr-6 flex items-center">
+                                <kbd className="hidden sm:inline-flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-black text-slate-400 shadow-sm uppercase tracking-tighter">
+                                    Enter <ChevronRight size={12} />
+                                </kbd>
                             </div>
 
                             {suggestions.length > 0 && (
-                                <div className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-fadeInUp origin-bottom">
-                                    <div className="bg-blue-50 px-4 py-2 border-b border-blue-100 text-xs font-bold text-blue-600 uppercase flex justify-between">
+                                <div className="absolute bottom-full left-0 w-full mb-4 bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden z-50 animate-fadeInUp origin-bottom">
+                                    <div className="bg-slate-900 px-6 py-3 text-[10px] font-black text-white uppercase flex justify-between tracking-widest">
                                         <span>Produtos Sugeridos</span>
-                                        <span>(Clique para adicionar)</span>
+                                        <span className="opacity-50">Selecione para adicionar</span>
                                     </div>
-                                    {suggestions.map((p, idx) => (
-                                        <button
-                                            key={p.id}
-                                            type="button"
-                                            onClick={() => handleSelectSuggestion(p)}
-                                            className={`w-full text-left px-4 py-3 border-b border-slate-50 last:border-0 hover:bg-brand-50 hover:pl-6 transition-all duration-200 group flex justify-between items-center ${idx === 0 ? 'bg-slate-50' : ''}`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-brand-500 transition">
-                                                    <Package size={20} />
+                                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                                        {suggestions.map((p, idx) => (
+                                            <button
+                                                key={p.id}
+                                                type="button"
+                                                onClick={() => handleSelectSuggestion(p)}
+                                                className={`w-full text-left px-6 py-4 border-b border-slate-100 last:border-0 hover:bg-blue-50 hover:pl-8 transition-all duration-300 group flex justify-between items-center ${idx === 0 ? 'bg-blue-50/30' : ''}`}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-blue-600 group-hover:shadow-md transition-all duration-300">
+                                                        <Package size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-black text-slate-800 text-lg leading-tight group-hover:text-blue-700">{p.name}</p>
+                                                        <p className="text-xs text-slate-400 font-mono mt-1 tracking-wider">{p.code}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-bold text-slate-800 text-base leading-tight group-hover:text-brand-700">{p.name}</p>
-                                                    <p className="text-xs text-slate-500 font-mono mt-0.5">{p.code}</p>
+                                                <div className="text-right">
+                                                    <p className="font-black text-slate-900 text-xl group-hover:text-blue-600">{formatCurrency(p.price)}</p>
+                                                    <div className="flex items-center justify-end gap-1.5 mt-1">
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${p.stock <= p.minStock ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+                                                        <p className={`text-[10px] font-black uppercase tracking-tighter ${p.stock <= p.minStock ? 'text-red-500' : 'text-emerald-600'}`}>
+                                                            Estoque: {p.stock}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="font-black text-slate-700 text-lg group-hover:text-brand-600">{formatCurrency(p.price)}</p>
-                                                <p className={`text-[10px] font-bold ${p.stock <= p.minStock ? 'text-red-500' : 'text-emerald-600'}`}>
-                                                    EST: {p.stock}
-                                                </p>
-                                            </div>
-                                        </button>
-                                    ))}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </form>
                     </div>
 
                     {/* 4. BOTTOM: TOTAL & PAY */}
-                    <div className="bg-blue-900 p-8 z-20 text-white shadow-[0_-5px_30px_rgba(0,0,0,0.15)] shrink-0">
-                        <div className="flex justify-between items-end mb-6">
-                            <div className="text-blue-300 font-bold uppercase tracking-widest text-sm mb-1">Total a Pagar</div>
-                            <div className="text-6xl font-black tracking-tighter">{formatCurrency(cartControl.total)}</div>
+                    <div className="bg-slate-900 p-10 z-20 text-white shadow-[0_-10px_40px_rgba(0,0,0,0.3)] shrink-0 border-t border-white/5">
+                        <div className="flex justify-between items-center mb-8">
+                            <div className="flex flex-col">
+                                <span className="text-blue-400 font-black uppercase tracking-[0.3em] text-[10px] mb-1">Total a Pagar</span>
+                                <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">{cartControl.cart.length} Itens no carrinho</span>
+                            </div>
+                            <div className="text-7xl font-black tracking-tighter text-white drop-shadow-2xl">
+                                {formatCurrency(cartControl.total)}
+                            </div>
                         </div>
                         <button
                             disabled={cartControl.cart.length === 0}
@@ -537,258 +554,652 @@ export const POS: React.FC = () => {
                                 setCashReceived('');
                                 setActiveModal('PAYMENT');
                             }}
-                            className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:bg-slate-700 disabled:cursor-not-allowed text-white text-2xl font-black uppercase tracking-wide rounded-xl shadow-lg transition-transform active:scale-[0.99] flex items-center justify-center gap-3"
+                            className="w-full py-6 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-20 disabled:grayscale disabled:cursor-not-allowed text-white text-3xl font-black uppercase tracking-widest rounded-2xl shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-all transform hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-4 group"
                         >
-                            <span>FINALIZAR VENDA (F5)</span>
-                            <ChevronRight size={28} strokeWidth={3} />
+                            <span>Finalizar Venda</span>
+                            <div className="flex items-center gap-2">
+                                <span className="bg-white/20 px-2 py-1 rounded text-xs group-hover:bg-white/30 transition-colors">F5</span>
+                                <ChevronRight size={32} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
+                            </div>
                         </button>
                     </div>
                 </div>
             </div>
 
             {/* FOOTER SHORTCUTS */}
-            <div className="bg-white border-t border-slate-200 py-3 flex justify-center gap-6 text-sm uppercase font-bold text-slate-500 tracking-wider shrink-0 overflow-x-auto">
+            <div className="bg-slate-900 border-t border-white/5 py-4 flex justify-center gap-8 text-[10px] uppercase font-black text-slate-400 tracking-[0.2em] shrink-0 overflow-x-auto">
                 {[
                     { k: 'F1', l: 'Busca' }, { k: 'F2', l: 'Cliente' }, { k: 'F5', l: 'Pagamento' },
                     { k: 'F8', l: 'Cancelar Item' }, { k: 'F10', l: 'Menu' }, { k: 'ESC', l: 'Voltar' }
                 ].map(s => (
                     <button
                         key={s.k}
-                        className="flex items-center gap-2 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition active:scale-95 whitespace-nowrap"
+                        className="flex items-center gap-3 cursor-pointer hover:text-white transition-all transform hover:scale-105 active:scale-95 whitespace-nowrap group"
                         onClick={() => {
                             const key = s.k === 'Busca' ? 'F1' : s.k === 'Voltar' ? 'Escape' : s.k.split(' ')[0];
                             window.dispatchEvent(new KeyboardEvent('keydown', { key }));
                         }}
                     >
-                        <span className="bg-slate-100 border-2 border-slate-300 px-2 py-0.5 rounded text-slate-700 text-xs font-black shadow-sm">{s.k}</span>
-                        <span>{s.l}</span>
+                        <span className="bg-white/10 border border-white/10 px-2.5 py-1 rounded-lg text-blue-400 font-black shadow-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">{s.k}</span>
+                        <span className="group-hover:translate-x-1 transition-transform">{s.l}</span>
                     </button>
-                ))}
+                ))
+                }
             </div>
+
 
             {/* --- MODALS --- */}
 
             {/* OPEN REGISTER MODAL */}
-            {cashRegister.modal === 'OPEN_BOX' && (
-                <div className="fixed inset-0 bg-blue-950/90 z-50 flex items-center justify-center backdrop-blur-md">
-                    <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-scaleIn overflow-hidden">
-                        <div className="bg-slate-50 p-6 border-b border-slate-200 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><Lock size={24} /></div>
-                                <div>
-                                    <h2 className="text-xl font-bold text-slate-800">Abertura de Caixa</h2>
-                                    <p className="text-xs text-slate-500 font-medium">Inicie o turno de vendas</p>
+            {
+                cashRegister.modal === 'OPEN_BOX' && (
+                    <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center backdrop-blur-xl animate-fadeIn">
+                        <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-[0_30px_100px_rgba(0,0,0,0.4)] animate-scaleIn overflow-hidden border border-white/20">
+                            <div className="bg-slate-50/50 p-10 border-b border-slate-100 flex justify-between items-center">
+                                <div className="flex items-center gap-5">
+                                    <div className="p-4 bg-blue-600 rounded-3xl text-white shadow-lg shadow-blue-200 rotate-3"><Lock size={28} /></div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Abertura de Caixa</h2>
+                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Inicie seu turno de trabalho</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm font-black text-slate-700 flex items-center justify-end gap-2"><Calendar size={16} className="text-blue-500" /> {new Date().toLocaleDateString()}</p>
+                                    <p className="text-xs text-slate-400 font-bold flex items-center justify-end gap-2 mt-1"><Clock size={14} /> {new Date().toLocaleTimeString().slice(0, 5)}</p>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <p className="text-sm font-bold text-slate-700 flex items-center justify-end gap-1"><Calendar size={14} /> {new Date().toLocaleDateString()}</p>
-                                <p className="text-xs text-slate-500 flex items-center justify-end gap-1"><Clock size={12} /> {new Date().toLocaleTimeString().slice(0, 5)}</p>
-                            </div>
-                        </div>
-                        <div className="p-8">
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                    <p className="text-xs text-slate-400 font-bold uppercase mb-1">Operador</p>
-                                    <p className="font-bold text-slate-700 flex items-center gap-2">
-                                        <User size={16} /> {StorageService.getCurrentUser()?.name || 'ADMIN'}
-                                    </p>
+                            <div className="p-12">
+                                <div className="grid grid-cols-2 gap-6 mb-10">
+                                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-inner">
+                                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">Operador</p>
+                                        <p className="font-black text-slate-800 flex items-center gap-2 text-lg">
+                                            <User size={20} className="text-blue-500" /> {StorageService.getCurrentUser()?.name || 'ADMIN'}
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-inner">
+                                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">Saldo Anterior</p>
+                                        <p className={`font-black flex items-center gap-2 text-lg ${cashRegister.lastClosedRegister ? 'text-slate-800' : 'text-slate-300 italic'}`}>
+                                            <DollarSign size={20} className="text-emerald-500" />
+                                            {cashRegister.lastClosedRegister ? formatCurrency(cashRegister.lastClosedRegister.finalCount || 0) : 'N/A'}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                    <p className="text-xs text-slate-400 font-bold uppercase mb-1">Saldo Anterior</p>
-                                    <p className={`font-bold flex items-center gap-2 ${cashRegister.lastClosedRegister ? 'text-slate-700' : 'text-slate-400 italic'}`}>
-                                        <DollarSign size={16} />
-                                        {cashRegister.lastClosedRegister ? formatCurrency(cashRegister.lastClosedRegister.finalCount || 0) : 'N/A'}
-                                    </p>
+                                <div className="mb-12">
+                                    <label className="block text-slate-400 font-black mb-4 text-[10px] uppercase tracking-[0.3em] text-center">Informe o Fundo de Troco (R$)</label>
+                                    <div className="relative max-w-xs mx-auto">
+                                        <input
+                                            autoFocus
+                                            type="number"
+                                            value={cashRegister.openingBalance}
+                                            onChange={e => cashRegister.setOpeningBalance(e.target.value)}
+                                            className="w-full text-center text-5xl py-6 font-black border-none bg-slate-50 focus:ring-0 text-slate-900 rounded-[2rem] shadow-inner placeholder-slate-200"
+                                            placeholder="0,00"
+                                        />
+                                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-24 h-1 bg-blue-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="mb-8">
-                                <label className="block text-slate-600 font-bold mb-3 text-sm uppercase tracking-wider text-center">Informe o Fundo de Troco (R$)</label>
-                                <div className="relative max-w-xs mx-auto">
-                                    <Input
-                                        autoFocus
-                                        type="number"
-                                        value={cashRegister.openingBalance}
-                                        onChange={e => cashRegister.setOpeningBalance(e.target.value)}
-                                        className="text-center text-4xl py-4 font-black border-2 border-blue-100 text-slate-800 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 rounded-xl shadow-inner bg-slate-50"
-                                        placeholder="0,00"
-                                    />
+                                <button
+                                    onClick={cashRegister.openRegister}
+                                    className="w-full py-6 text-xl font-black shadow-2xl bg-slate-900 hover:bg-blue-600 text-white rounded-3xl transition-all transform hover:-translate-y-1 active:scale-95 uppercase tracking-widest"
+                                >
+                                    Confirmar Abertura
+                                </button>
+                                <div className="mt-8 text-center">
+                                    <Link to="/" className="text-slate-400 hover:text-blue-600 text-[10px] font-black uppercase tracking-[0.2em] transition-colors">Voltar ao Dashboard</Link>
                                 </div>
-                            </div>
-                            <Button onClick={cashRegister.openRegister} className="w-full py-4 text-lg font-bold shadow-xl bg-blue-600 hover:bg-blue-700 text-white rounded-xl">CONFIRMAR ABERTURA</Button>
-                            <div className="mt-4 text-center">
-                                <Link to="/" className="text-slate-400 hover:text-slate-600 text-xs font-bold uppercase tracking-wider transition-colors">Voltar ao Dashboard</Link>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* CLOSE REGISTER MODAL */}
-            {cashRegister.modal === 'CLOSE_BOX' && cashRegister.closingSummary && (
-                <div className="fixed inset-0 bg-blue-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-                    <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-scaleIn overflow-hidden">
-                        <div className="bg-slate-50 p-6 border-b border-slate-200 flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><AlertOctagon className="text-red-500" /> Fechamento de Caixa</h2>
-                            <button onClick={() => cashRegister.setModal('NONE')} className="text-slate-400 hover:text-slate-600"><X /></button>
-                        </div>
-                        <div className="p-8">
-                            <div className="space-y-4 mb-8">
-                                <div className="flex justify-between items-center"><span className="text-slate-500">Fundo de Abertura</span><span className="font-bold">{formatCurrency(cashRegister.closingSummary.opening)}</span></div>
-                                <div className="flex justify-between items-center text-emerald-600"><span className="flex items-center gap-2"><TrendingUp size={16} /> Vendas em Dinheiro</span><span className="font-bold">+ {formatCurrency(cashRegister.closingSummary.salesCash)}</span></div>
-                                <div className="flex justify-between items-center text-blue-600"><span className="flex items-center gap-2"><TrendingUp size={16} /> Suprimentos</span><span className="font-bold">+ {formatCurrency(cashRegister.closingSummary.supply)}</span></div>
-                                <div className="flex justify-between items-center text-red-600"><span className="flex items-center gap-2"><TrendingDown size={16} /> Sangrias</span><span className="font-bold">- {formatCurrency(cashRegister.closingSummary.bleed)}</span></div>
+            {
+                cashRegister.modal === 'CLOSE_BOX' && cashRegister.closingSummary && (
+                    <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-6 backdrop-blur-xl animate-fadeIn">
+                        <div className="bg-white rounded-[3rem] w-full max-w-xl shadow-[0_50px_150px_rgba(0,0,0,0.5)] animate-scaleIn overflow-hidden border border-white/20">
+                            <div className="bg-slate-50/50 p-10 border-b border-slate-100 flex justify-between items-center">
+                                <div className="flex items-center gap-5">
+                                    <div className="p-4 bg-red-600 rounded-3xl text-white shadow-lg shadow-red-200 rotate-3"><AlertOctagon size={28} /></div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Fechamento de Caixa</h2>
+                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Encerramento do turno</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => cashRegister.setModal('NONE')} className="p-3 hover:bg-white rounded-2xl transition-colors text-slate-400 hover:text-slate-900 shadow-sm">
+                                    <X size={24} />
+                                </button>
                             </div>
-                            <div className="bg-amber-50 border border-amber-200 p-6 rounded-xl mb-6">
-                                <label className="block text-amber-900 font-bold mb-2 uppercase text-xs tracking-wider">Conferência Física (Gaveta)</label>
-                                <Input
-                                    autoFocus
-                                    type="number"
-                                    value={cashRegister.closingCount}
-                                    onChange={e => cashRegister.setClosingCount(e.target.value)}
-                                    className="text-center text-3xl font-black bg-white border-amber-300 focus:ring-amber-500 text-amber-900"
-                                    placeholder="0,00"
-                                />
-                                {cashRegister.closingCount && (<div className={`text-center mt-3 text-sm font-bold ${(parseFloat(cashRegister.closingCount.replace(',', '.')) - cashRegister.closingSummary.calculated) >= -0.01 ? 'text-emerald-600' : 'text-red-600'}`}>Diferença: {formatCurrency(parseFloat(cashRegister.closingCount.replace(',', '.')) - cashRegister.closingSummary.calculated)}</div>)}
+                            <div className="p-12">
+                                <div className="space-y-4 mb-10">
+                                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                        <span className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Fundo de Abertura</span>
+                                        <span className="font-black text-lg">{formatCurrency(cashRegister.closingSummary.opening)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 text-emerald-700">
+                                        <span className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest"><TrendingUp size={14} /> Vendas em Dinheiro</span>
+                                        <span className="font-black text-lg">+ {formatCurrency(cashRegister.closingSummary.salesCash)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-blue-50/50 p-4 rounded-2xl border border-blue-100 text-blue-700">
+                                        <span className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest"><TrendingUp size={14} /> Suprimentos</span>
+                                        <span className="font-black text-lg">+ {formatCurrency(cashRegister.closingSummary.supply)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-red-50/50 p-4 rounded-2xl border border-red-100 text-red-700">
+                                        <span className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest"><TrendingDown size={14} /> Sangrias</span>
+                                        <span className="font-black text-lg">- {formatCurrency(cashRegister.closingSummary.bleed)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-slate-900 p-8 rounded-[2rem] mb-10 shadow-2xl">
+                                    <label className="block text-blue-400 font-black mb-4 text-[10px] uppercase tracking-[0.3em] text-center">Conferência Física (Gaveta)</label>
+                                    <div className="relative max-w-xs mx-auto">
+                                        <input
+                                            autoFocus
+                                            type="number"
+                                            value={cashRegister.closingCount}
+                                            onChange={e => cashRegister.setClosingCount(e.target.value)}
+                                            className="w-full text-center text-5xl py-4 font-black border-none bg-white/5 focus:ring-0 text-white rounded-2xl placeholder-white/10"
+                                            placeholder="0,00"
+                                        />
+                                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-24 h-1 bg-blue-500 rounded-full shadow-lg"></div>
+                                    </div>
+                                    {cashRegister.closingCount && (
+                                        <div className="text-center mt-6 text-sm font-black uppercase tracking-widest ${(parseFloat(cashRegister.closingCount.replace(',', '.')) - cashRegister.closingSummary.calculated) >= -0.01 ? 'text-emerald-400' : 'text-red-400'}">
+                                            Diferença: {formatCurrency(parseFloat(cashRegister.closingCount.replace(',', '.')) - cashRegister.closingSummary.calculated)}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={() => setConfirmState({ isOpen: true, title: 'Fechar Caixa', message: 'Deseja realmente fechar o caixa agora?', variant: 'danger', onConfirm: handleConfirmCloseRegister })}
+                                    className="w-full py-6 text-xl font-black shadow-2xl bg-red-600 hover:bg-red-700 text-white rounded-3xl transition-all transform hover:-translate-y-1 active:scale-95 uppercase tracking-widest"
+                                >
+                                    Confirmar Fechamento
+                                </button>
                             </div>
-                            <Button onClick={() => setConfirmState({ isOpen: true, title: 'Fechar Caixa', message: 'Deseja realmente fechar o caixa agora?', variant: 'danger', onConfirm: handleConfirmCloseRegister })} className="w-full py-4 text-lg font-bold shadow-lg bg-slate-800 hover:bg-slate-900 text-white">CONFIRMAR FECHAMENTO</Button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* PRINT RECEIPT MODAL */}
-            {activeModal === 'PRINT_RECEIPT' && ((lastSale && printType === 'SALE') || (cashRegister.closedRegisterData && printType === 'CLOSING')) && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl w-full max-w-4xl h-[90vh] flex shadow-2xl overflow-hidden animate-scaleIn">
-                        <div className="w-1/2 bg-slate-100 p-8 overflow-y-auto flex justify-center">
-                            <div id="printable-area" className="bg-white shadow-lg w-[80mm] min-h-[120mm] p-4 text-[10px] font-mono leading-tight text-slate-800 border-t-4 border-slate-300">
-                                {printType === 'SALE' && lastSale ? (
-                                    <>
-                                        <div className="text-center mb-2">
-                                            <h2 className="font-bold text-sm uppercase">{settings?.company?.fantasyName || 'PDV MASTER'}</h2>
-                                            <p>{settings?.company?.corporateName || ''}</p><p>{settings?.company?.address || ''}</p>
-                                            <p>CNPJ: {settings?.company?.cnpj || ''}  IE: {settings?.company?.ie || ''}</p>
-                                            <hr className="border-dashed border-slate-300 my-2" />
-                                            <h3 className="font-bold uppercase mb-1">{receiptType === 'NFCE' ? 'Documento Auxiliar da Nota Fiscal de Consumidor Eletrônica' : 'RECIBO SIMPLES - SEM VALOR FISCAL'}</h3>
-                                            {receiptType === 'NFCE' && <p>Não permite aproveitamento de crédito de ICMS</p>}
-                                        </div>
-                                        <table className="w-full mb-2">
-                                            <thead><tr className="border-b border-dashed border-slate-400"><th className="text-left">Item</th><th className="text-right">Qtd</th><th className="text-right">Unit</th><th className="text-right">Total</th></tr></thead>
-                                            <tbody>{lastSale.items.map((item, idx) => (<tr key={idx}><td className="truncate max-w-[30mm]">{item.name}</td><td className="text-right">{item.qty}</td><td className="text-right">{item.price.toFixed(2)}</td><td className="text-right">{item.total.toFixed(2)}</td></tr>))}</tbody>
-                                        </table>
-                                        <hr className="border-dashed border-slate-300 my-2" />
-                                        <div className="flex justify-between font-bold text-xs"><span>TOTAL R$</span><span>{lastSale.total.toFixed(2).replace('.', ',')}</span></div>
-                                        <div className="flex justify-between mt-1"><span>Forma Pagamento</span><span>{lastSale.paymentMethod}</span></div>
-                                        {lastSale.paymentMethod === 'CASH' && (<> <div className="flex justify-between"><span>Valor Recebido</span><span>{formatCurrency(lastSale.amountPaid || 0)}</span></div> <div className="flex justify-between font-bold"><span>Troco</span><span>{formatCurrency(lastSale.change || 0)}</span></div></>)}
-                                        <hr className="border-dashed border-slate-300 my-2" />
-                                        <div className="text-center"><p>Consumidor: {customers.find(c => c.id === lastSale.customerId)?.name || 'Não Identificado'}</p>{customers.find(c => c.id === lastSale.customerId)?.document && (<p>CPF: {customers.find(c => c.id === lastSale.customerId)?.document}</p>)}</div>
-                                        {receiptType === 'NFCE' && (<div className="mt-4 text-center"><p className="mb-1 text-[9px]">Consulta via Leitor de QR Code</p><div className="flex justify-center mb-1">{qrCodeUrl && <img src={qrCodeUrl} className="w-24 h-24" alt="QR Code" />}</div><p className="break-all text-[8px] mb-2 font-bold">Chave de Acesso: <br /> {lastSale.accessKey?.replace(/(.{4})/g, '$1 ')}</p><p>Protocolo de Autorização: 135240001234567</p><p>Data de Autorização: {new Date(lastSale.date).toLocaleString()}</p></div>)}
-                                        <div className="mt-4 text-center border-t border-dashed border-slate-300 pt-2"><p>Tributos Totais Incidentes (Lei Federal 12.741/2012): R$ {(lastSale.total * 0.18).toFixed(2)}</p><p className="mt-2 font-bold italic">PDV MASTER ERP</p></div>
-                                    </>
-                                ) : (cashRegister.closedRegisterData && (
-                                    <>
-                                        <div className="text-center mb-4">
-                                            <h2 className="font-bold text-sm uppercase">Relatório de Fechamento</h2>
-                                            <p>Caixa: {cashRegister.closedRegisterData.id.slice(0, 8)}</p>
-                                            <p>Operador: {StorageService.getCurrentUser()?.name || 'ADMIN'}</p>
-                                            <p>Abertura: {new Date(cashRegister.closedRegisterData.openedAt).toLocaleString()}</p>
-                                            <p>Fechamento: {new Date(cashRegister.closedRegisterData.closedAt!).toLocaleString()}</p>
-                                        </div>
-                                        <hr className="border-dashed border-slate-300 my-2" />
-                                        <div className="space-y-1"><div className="flex justify-between"><span>(+) Abertura</span><span>{formatCurrency(cashRegister.closedRegisterData.openingBalance)}</span></div><div className="flex justify-between font-bold mt-2"><span>(=) Saldo Sistema</span><span>{formatCurrency(cashRegister.closedRegisterData.currentBalance)}</span></div><div className="flex justify-between font-bold"><span>(=) Saldo Físico</span><span>{formatCurrency(cashRegister.closedRegisterData.finalCount || 0)}</span></div><hr className="border-dashed border-slate-300 my-2" /><div className="flex justify-between font-black text-xs"><span>DIFERENÇA</span><span>{formatCurrency(cashRegister.closedRegisterData.difference || 0)}</span></div></div>
-                                        <div className="mt-8 text-center text-[9px] italic"><p>Conferido por: _______________________</p></div>
-                                    </>
-                                )
-                                )}
+            {
+                activeModal === 'PRINT_RECEIPT' && ((lastSale && printType === 'SALE') || (cashRegister.closedRegisterData && printType === 'CLOSING')) && (
+                    <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-6 backdrop-blur-xl animate-fadeIn">
+                        <div className="bg-white rounded-[3rem] w-full max-w-5xl h-[90vh] flex shadow-[0_50px_150px_rgba(0,0,0,0.5)] overflow-hidden animate-scaleIn border border-white/20">
+                            <div className="w-1/2 bg-slate-100 p-12 overflow-y-auto flex justify-center shadow-inner">
+                                <div className="bg-white shadow-2xl w-[80mm] min-h-[120mm] p-6 text-[10px] font-mono leading-tight text-slate-800 border-t-8 border-slate-900">
+                                    {printType === 'SALE' && lastSale ? (
+                                        <>
+                                            <div className="text-center mb-4">
+                                                <h2 className="font-black text-sm uppercase tracking-tighter">{settings?.company?.fantasyName || 'PDV MASTER'}</h2>
+                                                <p className="text-[8px]">{settings?.company?.corporateName || ''}</p>
+                                                <p className="text-[8px]">{settings?.company?.address || ''}</p>
+                                                <p className="text-[8px]">CNPJ: {settings?.company?.cnpj || ''}  IE: {settings?.company?.ie || ''}</p>
+                                                <div className="border-b border-dashed border-slate-300 my-3"></div>
+                                                <h3 className="font-black uppercase mb-1 text-[9px]">{receiptType === 'NFCE' ? 'Documento Auxiliar da Nota Fiscal de Consumidor Eletrônica' : 'RECIBO DE VENDA'}</h3>
+                                                {receiptType === 'NFCE' && <p className="text-[7px]">Não permite aproveitamento de crédito de ICMS</p>}
+                                            </div>
+                                            <table className="w-full mb-4">
+                                                <thead><tr className="border-b border-slate-900"><th className="text-left py-1">ITEM</th><th className="text-right py-1">QTD</th><th className="text-right py-1">TOTAL</th></tr></thead>
+                                                <tbody>{lastSale.items.map((item, idx) => (<tr key={idx} className="border-b border-slate-100"><td className="py-1 truncate max-w-[35mm] uppercase font-bold">{item.name}</td><td className="text-right py-1">{item.qty}</td><td className="text-right py-1 font-bold">{item.total.toFixed(2)}</td></tr>))}</tbody>
+                                            </table>
+                                            <div className="flex justify-between font-black text-sm mb-1"><span>TOTAL R$</span><span>{lastSale.total.toFixed(2).replace('.', ',')}</span></div>
+                                            <div className="flex justify-between text-[9px] mb-3"><span>FORMA PGTO</span><span className="font-bold uppercase">{lastSale.paymentMethod}</span></div>
+                                            {lastSale.paymentMethod === 'CASH' && (<> <div className="flex justify-between text-[8px]"><span>RECEBIDO</span><span>{formatCurrency(lastSale.amountPaid || 0)}</span></div> <div className="flex justify-between font-black text-[10px] mt-1"><span>TROCO</span><span>{formatCurrency(lastSale.change || 0)}</span></div></>)}
+                                            <div className="border-b border-dashed border-slate-300 my-4"></div>
+                                            <div className="text-center text-[8px]"><p className="font-bold">CONSUMIDOR: {customers.find(c => c.id === lastSale.customerId)?.name || 'NÃO IDENTIFICADO'}</p>{customers.find(c => c.id === lastSale.customerId)?.document && (<p>CPF: {customers.find(c => c.id === lastSale.customerId)?.document}</p>)}</div>
+                                            {receiptType === 'NFCE' && (<div className="mt-6 text-center"><p className="mb-2 text-[8px] font-bold">CONSULTA VIA QR CODE</p><div className="flex justify-center mb-3 bg-white p-2 border border-slate-100 inline-block mx-auto">{qrCodeUrl && <img src={qrCodeUrl} className="w-28 h-28" alt="QR Code" />}</div><p className="break-all text-[7px] mb-2 font-black leading-relaxed">CHAVE DE ACESSO:<br />{lastSale.accessKey?.replace(/(.{4})/g, '$1 ')}</p><p className="text-[7px]">PROTOCOLO: 135240001234567</p><p className="text-[7px]">DATA: {new Date(lastSale.date).toLocaleString()}</p></div>)}
+                                            <div className="mt-8 text-center border-t border-slate-900 pt-4"><p className="text-[7px] uppercase font-bold">Obrigado pela preferência!</p><p className="mt-2 font-black italic text-[9px] tracking-widest">PDV MASTER ERP</p></div>
+                                        </>
+                                    ) : (cashRegister.closedRegisterData && (
+                                        <>
+                                            <div className="text-center mb-6">
+                                                <h2 className="font-black text-sm uppercase tracking-widest">Fechamento de Caixa</h2>
+                                                <div className="border-b-2 border-slate-900 w-12 mx-auto my-3"></div>
+                                                <p className="font-bold">CAIXA: {cashRegister.closedRegisterData.id.slice(0, 8).toUpperCase()}</p>
+                                                <p>OPERADOR: {StorageService.getCurrentUser()?.name || 'ADMIN'}</p>
+                                            </div>
+                                            <div className="space-y-2 text-[9px] mb-8">
+                                                <div className="flex justify-between"><span>ABERTURA:</span><span className="font-bold">{new Date(cashRegister.closedRegisterData.openedAt).toLocaleString()}</span></div>
+                                                <div className="flex justify-between"><span>FECHAMENTO:</span><span className="font-bold">{new Date(cashRegister.closedRegisterData.closedAt!).toLocaleString()}</span></div>
+                                            </div>
+                                            <div className="border-b border-slate-900 mb-4"></div>
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between"><span>(+) FUNDO ABERTURA</span><span className="font-bold">{formatCurrency(cashRegister.closedRegisterData.openingBalance)}</span></div>
+                                                <div className="flex justify-between text-blue-600"><span>(+) TOTAL VENDAS</span><span className="font-bold">{formatCurrency(cashRegister.closedRegisterData.currentBalance - cashRegister.closedRegisterData.openingBalance)}</span></div>
+                                                <div className="flex justify-between font-black text-xs pt-2 border-t border-slate-200"><span>(=) SALDO SISTEMA</span><span>{formatCurrency(cashRegister.closedRegisterData.currentBalance)}</span></div>
+                                                <div className="flex justify-between font-black text-xs"><span>(=) SALDO FÍSICO</span><span>{formatCurrency(cashRegister.closedRegisterData.finalCount || 0)}</span></div>
+                                                <div className="flex justify-between font-black text-sm pt-3 border-t-2 border-slate-900"><span>DIFERENÇA</span><span className={cashRegister.closedRegisterData.difference! < 0 ? 'text-red-600' : 'text-emerald-600'}>{formatCurrency(cashRegister.closedRegisterData.difference || 0)}</span></div>
+                                            </div>
+                                            <div className="mt-16 text-center text-[8px] uppercase font-black border-t border-dashed border-slate-300 pt-8"><p className="mb-10">Assinatura do Responsável</p><p>_______________________________________</p></div>
+                                        </>
+                                    )
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                        <div className="w-1/2 p-10 bg-white flex flex-col justify-between">
-                            <div>
-                                <div className="flex items-center gap-3 mb-6 text-emerald-600"><CheckCircle size={48} /><h2 className="text-3xl font-bold text-slate-800">{printType === 'SALE' ? 'Venda Finalizada!' : 'Caixa Fechado!'}</h2></div>
-                                <p className="text-slate-500 mb-8 text-lg">{printType === 'SALE' ? 'Selecione o tipo de comprovante para imprimir.' : 'Imprima o relatório de fechamento para conferência.'}</p>
-                                {printType === 'SALE' && (
-                                    <div className="space-y-4"><label className="flex items-center gap-4 p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-blue-500 transition group"><input type="radio" name="receiptType" checked={receiptType === 'NFCE'} onChange={() => setReceiptType('NFCE')} className="w-5 h-5 text-blue-600" /><div className="flex-1"><p className="font-bold text-slate-800 group-hover:text-blue-700">Nota Fiscal (NFC-e)</p><p className="text-sm text-slate-400">Documento fiscal válido com QR Code</p></div><div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><FileText size={24} /></div></label><label className="flex items-center gap-4 p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-blue-500 transition group"><input type="radio" name="receiptType" checked={receiptType === 'RECIBO'} onChange={() => setReceiptType('RECIBO')} className="w-5 h-5 text-blue-600" /><div className="flex-1"><p className="font-bold text-slate-800 group-hover:text-blue-700">Recibo Simples</p><p className="text-sm text-slate-400">Comprovante de venda sem valor fiscal</p></div><div className="p-2 bg-slate-100 text-slate-600 rounded-lg"><Printer size={24} /></div></label></div>
-                                )}
-                            </div>
-                            <div className="space-y-3">
-                                <Button onClick={handlePrint} className="w-full py-4 text-xl font-bold shadow-lg shadow-blue-200 gap-3"><Printer size={24} /> IMPRIMIR {printType === 'SALE' ? (receiptType === 'NFCE' ? 'NFC-e' : 'RECIBO') : 'RELATÓRIO'}</Button>
-                                <Button variant="secondary" onClick={closePrintModal} className="w-full py-4 font-bold text-slate-500">{printType === 'SALE' ? 'Fechar e Nova Venda (ESC)' : 'Fechar e Sair'}</Button>
+                            <div className="w-1/2 p-16 bg-white flex flex-col justify-between relative overflow-hidden">
+                                {/* Decorative Background */}
+                                <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-[100px] -ml-48 -mt-48"></div>
+
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-5 mb-10">
+                                        <div className="p-5 bg-emerald-100 text-emerald-600 rounded-[2rem] shadow-lg shadow-emerald-50 animate-bounce">
+                                            <CheckCircle size={48} />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-4xl font-black text-slate-900 tracking-tight">{printType === 'SALE' ? 'Venda Concluída!' : 'Caixa Encerrado!'}</h2>
+                                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Operação realizada com sucesso</p>
+                                        </div>
+                                    </div>
+
+                                    {printType === 'SALE' && (
+                                        <div className="space-y-6">
+                                            <p className="text-slate-500 font-medium text-lg">Escolha o formato do comprovante:</p>
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {[
+                                                    { id: 'NFCE', title: 'Nota Fiscal (NFC-e)', desc: 'Documento fiscal oficial com QR Code', icon: <FileText size={28} />, color: 'blue' },
+                                                    { id: 'RECIBO', title: 'Recibo Simples', desc: 'Comprovante não fiscal para o cliente', icon: <Printer size={28} />, color: 'slate' }
+                                                ].map(t => (
+                                                    <label key={t.id} className={`flex items-center gap-5 p-6 border-2 rounded-[2rem] cursor-pointer transition-all duration-300 group ${receiptType === t.id ? `border-${t.color}-500 bg-${t.color}-50 shadow-xl shadow-${t.color}-100` : 'border-slate-100 hover:border-slate-200 bg-slate-50/50'}`}>
+                                                        <input type="radio" name="receiptType" checked={receiptType === t.id} onChange={() => setReceiptType(t.id as any)} className="hidden" />
+                                                        <div className={`p-4 rounded-2xl transition-colors ${receiptType === t.id ? `bg-${t.color}-500 text-white` : 'bg-white text-slate-400 group-hover:text-slate-600'}`}>
+                                                            {t.icon}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p className={`font-black text-lg uppercase tracking-tight ${receiptType === t.id ? `text-${t.color}-900` : 'text-slate-700'}`}>{t.title}</p>
+                                                            <p className="text-sm text-slate-400 font-medium">{t.desc}</p>
+                                                        </div>
+                                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${receiptType === t.id ? `border-${t.color}-500 bg-${t.color}-500` : 'border-slate-300'}`}>
+                                                            {receiptType === t.id && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-4 relative z-10">
+                                    <button
+                                        onClick={handlePrint}
+                                        className="w-full py-6 bg-slate-900 hover:bg-blue-600 text-white text-xl font-black rounded-[2rem] shadow-2xl transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-4 uppercase tracking-widest"
+                                    >
+                                        <Printer size={28} />
+                                        Imprimir {printType === 'SALE' ? (receiptType === 'NFCE' ? 'NFC-e' : 'Recibo') : 'Relatório'}
+                                    </button>
+                                    <button
+                                        onClick={closePrintModal}
+                                        className="w-full py-5 bg-slate-100 hover:bg-slate-200 text-slate-500 font-black rounded-[1.5rem] transition-all uppercase tracking-widest text-xs"
+                                    >
+                                        {printType === 'SALE' ? 'Pular e Nova Venda (ESC)' : 'Fechar e Sair'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* PAYMENT MODAL */}
-            {activeModal === 'PAYMENT' && (
-                <div className="fixed inset-0 bg-blue-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-                    <div className="bg-white rounded-xl w-full max-w-5xl h-[85vh] flex shadow-2xl overflow-hidden animate-scaleIn">
-                        <div className="w-1/3 bg-slate-50 p-10 flex flex-col justify-between border-r border-slate-200"><h3 className="text-slate-400 font-bold uppercase tracking-wider mb-2 text-sm">Resumo do Pagamento</h3><p className="text-6xl font-black text-slate-800 tracking-tighter mb-8">{formatCurrency(cartControl.total)}</p><div className="space-y-4 text-slate-600"><div className="flex justify-between border-b border-slate-200 pb-3"><span className="font-medium">Itens</span><span className="font-bold text-lg">{cartControl.cart.length}</span></div><div className="flex justify-between border-b border-slate-200 pb-3"><span className="font-medium">Cliente</span><span className="font-bold text-right">{selectedCustomer?.name || 'Não Identificado'}</span></div></div><Button variant="secondary" onClick={() => setActiveModal('NONE')} className="w-full py-4 uppercase font-bold">Cancelar (ESC)</Button></div>
-                        <div className="w-2/3 p-10 bg-white overflow-y-auto relative">
-                            {paymentSubView === 'METHODS' && (<div className="animate-fadeIn"><h3 className="text-2xl font-bold text-slate-800 mb-8">Como o cliente vai pagar?</h3><div className="grid grid-cols-2 gap-6"><button onClick={() => setPaymentSubView('CASH')} className="h-40 bg-white hover:bg-emerald-50 border-2 rounded-2xl flex flex-col items-center justify-center gap-4 transition group"><div className="p-4 bg-emerald-100 rounded-full text-emerald-600"><DollarSign size={40} /></div><span className="font-bold text-xl">Dinheiro</span></button><button onClick={handlePixPayment} className="h-40 bg-white hover:bg-brand-50 border-2 rounded-2xl flex flex-col items-center justify-center gap-4 transition group"><div className="p-4 bg-brand-100 rounded-full text-brand-600"><Smartphone size={40} /></div><span className="font-bold text-xl">PIX</span></button><button onClick={() => finalizeSale('DEBIT')} className="h-40 bg-white hover:bg-blue-50 border-2 rounded-2xl flex flex-col items-center justify-center gap-4 transition group"><div className="p-4 bg-blue-100 rounded-full text-blue-600"><CreditCard size={40} /></div><span className="font-bold text-xl">Débito</span></button><button onClick={() => finalizeSale('CREDIT')} className="h-40 bg-white hover:bg-purple-50 border-2 rounded-2xl flex flex-col items-center justify-center gap-4 transition group"><div className="p-4 bg-purple-100 rounded-full text-purple-600"><CreditCard size={40} /></div><span className="font-bold text-xl">Crédito</span></button></div></div>)}
-                            {paymentSubView === 'CASH' && (<div className="animate-fadeIn flex flex-col h-full"><button onClick={() => setPaymentSubView('METHODS')} className="absolute top-6 left-6 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800"><ChevronsLeft size={18} /> Voltar</button><h3 className="text-2xl font-bold text-slate-800 mb-2 text-center">Pagamento em Dinheiro</h3><p className="text-center text-slate-500 mb-8">Informe o valor recebido para calcular o troco.</p><div className="space-y-4 mb-6"><Input label="Valor Recebido (R$)" type="number" value={cashReceived} onChange={e => setCashReceived(e.target.value)} ref={cashReceivedInputRef} className="text-center text-4xl py-4 font-black" placeholder="0,00" /><div className="grid grid-cols-4 gap-2">{[5, 10, 20, 50, 100, cartControl.total].map(val => (<button key={val} onClick={() => setCashReceived(val.toFixed(2).replace('.', ','))} className="py-2 bg-slate-100 rounded-lg font-bold">{val === cartControl.total ? 'Exato' : `R$ ${val}`}</button>))}</div></div><div className={`flex-1 p-6 rounded-xl flex flex-col items-center justify-center text-center transition ${changeAmount >= 0 ? 'bg-blue-50' : 'bg-red-50'}`}><p className="text-sm font-bold uppercase text-blue-800">Troco</p><p className="text-7xl font-black text-blue-900 tracking-tighter">{formatCurrency(changeAmount >= 0 ? changeAmount : 0)}</p></div><Button onClick={() => finalizeSale('CASH', { paid: parseFloat(cashReceived.replace(',', '.')), change: changeAmount })} disabled={changeAmount < 0 || !cashReceived} className="w-full py-5 text-xl font-bold mt-6">Confirmar Pagamento</Button></div>)}
-                            {processing && (<div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center gap-3 text-blue-600 animate-pulse font-bold backdrop-blur-sm"><RefreshCcw className="animate-spin" size={32} /><span>Processando...</span></div>)}
+            {
+                activeModal === 'PAYMENT' && (
+                    <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-6 backdrop-blur-xl animate-fadeIn">
+                        <div className="bg-white rounded-[3rem] w-full max-w-6xl h-[85vh] flex shadow-[0_50px_150px_rgba(0,0,0,0.5)] animate-scaleIn overflow-hidden border border-white/20">
+                            <div className="w-1/3 bg-slate-900 p-12 flex flex-col justify-between text-white relative overflow-hidden">
+                                {/* Decorative Background */}
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 rounded-full blur-[80px] -mr-32 -mt-32"></div>
+
+                                <div className="relative z-10">
+                                    <h3 className="text-blue-400 font-black uppercase tracking-[0.3em] mb-4 text-xs">Resumo do Pagamento</h3>
+                                    <p className="text-7xl font-black tracking-tighter mb-10 drop-shadow-2xl">{formatCurrency(cartControl.total)}</p>
+
+                                    <div className="space-y-6">
+                                        <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                                            <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Total de Itens</span>
+                                            <span className="font-black text-2xl">{cartControl.cart.length}</span>
+                                        </div>
+                                        <div className="flex flex-col border-b border-white/10 pb-4">
+                                            <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mb-2">Cliente</span>
+                                            <span className="font-black text-xl text-blue-100 truncate">{selectedCustomer?.name || 'CONSUMIDOR FINAL'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => setActiveModal('NONE')}
+                                    className="relative z-10 w-full py-5 bg-white/10 hover:bg-white/20 text-white rounded-2xl uppercase font-black tracking-widest transition-all border border-white/10 active:scale-95"
+                                >
+                                    Cancelar (ESC)
+                                </button>
+                            </div>
+
+                            <div className="w-2/3 p-16 bg-white overflow-y-auto relative">
+                                {paymentSubView === 'METHODS' && (
+                                    <div className="animate-fadeIn">
+                                        <h3 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">Forma de Pagamento</h3>
+                                        <p className="text-slate-400 font-bold mb-12 uppercase tracking-widest text-xs">Selecione como o cliente deseja pagar</p>
+
+                                        <div className="grid grid-cols-2 gap-8">
+                                            {[
+                                                { id: 'CASH', label: 'Dinheiro', icon: <DollarSign size={48} />, color: 'emerald', action: () => setPaymentSubView('CASH') },
+                                                { id: 'PIX', label: 'PIX QR Code', icon: <Smartphone size={48} />, color: 'blue', action: handlePixPayment },
+                                                { id: 'DEBIT', label: 'Cartão Débito', icon: <CreditCard size={48} />, color: 'slate', action: () => finalizeSale('DEBIT') },
+                                                { id: 'CREDIT', label: 'Cartão Crédito', icon: <CreditCard size={48} />, color: 'purple', action: () => finalizeSale('CREDIT') }
+                                            ].map(m => (
+                                                <button
+                                                    key={m.id}
+                                                    onClick={m.action}
+                                                    className={`h-48 bg-slate-50 hover:bg-white border-2 border-transparent hover:border-${m.color}-500 rounded-[2.5rem] flex flex-col items-center justify-center gap-5 transition-all duration-300 group hover:shadow-2xl hover:shadow-${m.color}-100 transform hover:-translate-y-2`}
+                                                >
+                                                    <div className={`p-5 bg-${m.color}-100 text-${m.color}-600 rounded-3xl group-hover:scale-110 transition-transform duration-300`}>
+                                                        {m.icon}
+                                                    </div>
+                                                    <span className="font-black text-xl text-slate-800 uppercase tracking-widest">{m.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {paymentSubView === 'CASH' && (
+                                    <div className="animate-fadeIn flex flex-col h-full">
+                                        <button onClick={() => setPaymentSubView('METHODS')} className="absolute top-10 left-10 flex items-center gap-3 text-xs font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest transition-colors">
+                                            <ChevronsLeft size={20} /> Voltar
+                                        </button>
+
+                                        <div className="text-center mt-4 mb-12">
+                                            <h3 className="text-4xl font-black text-slate-900 mb-2 tracking-tight">Pagamento em Dinheiro</h3>
+                                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Informe o valor recebido</p>
+                                        </div>
+
+                                        <div className="max-w-md mx-auto w-full space-y-8">
+                                            <div className="relative">
+                                                <input
+                                                    autoFocus
+                                                    type="number"
+                                                    value={cashReceived}
+                                                    onChange={e => setCashReceived(e.target.value)}
+                                                    ref={cashReceivedInputRef}
+                                                    className="w-full text-center text-6xl py-8 font-black border-none bg-slate-50 focus:ring-0 text-slate-900 rounded-[2.5rem] shadow-inner placeholder-slate-200"
+                                                    placeholder="0,00"
+                                                />
+                                                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.5)]"></div>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-3">
+                                                {[10, 20, 50, 100, 200, cartControl.total].map(val => (
+                                                    <button
+                                                        key={val}
+                                                        onClick={() => setCashReceived(val.toFixed(2).replace('.', ','))}
+                                                        className="py-4 bg-slate-100 hover:bg-slate-900 hover:text-white rounded-2xl font-black transition-all active:scale-95 uppercase text-xs tracking-widest"
+                                                    >
+                                                        {val === cartControl.total ? 'Valor Exato' : `R$ ${val}`}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <div className={`p-10 rounded-[2.5rem] flex flex-col items-center justify-center text-center transition-all duration-500 ${changeAmount >= 0 ? 'bg-emerald-50 shadow-inner' : 'bg-red-50'}`}>
+                                                <p className="text-[10px] font-black uppercase text-emerald-800 tracking-[0.3em] mb-2">Troco a Devolver</p>
+                                                <p className="text-7xl font-black text-emerald-900 tracking-tighter drop-shadow-sm">
+                                                    {formatCurrency(changeAmount >= 0 ? changeAmount : 0)}
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                onClick={() => finalizeSale('CASH', { paid: parseFloat(cashReceived.replace(',', '.')), change: changeAmount })}
+                                                disabled={changeAmount < 0 || !cashReceived}
+                                                className="w-full py-6 bg-slate-900 hover:bg-emerald-600 disabled:opacity-20 text-white text-2xl font-black rounded-[2rem] shadow-2xl transition-all transform hover:-translate-y-1 active:scale-95 uppercase tracking-widest"
+                                            >
+                                                Confirmar Pagamento
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {processing && (
+                                    <div className="absolute inset-0 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center gap-6 text-blue-600 z-50">
+                                        <div className="relative">
+                                            <div className="w-24 h-24 border-8 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+                                            <RefreshCcw className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-600" size={32} />
+                                        </div>
+                                        <span className="text-2xl font-black uppercase tracking-[0.3em] animate-pulse">Processando...</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* PIX MODAL (WAITING) */}
-            {activeModal === 'PIX_WAITING' && pixData && (
-                <div className="fixed inset-0 bg-blue-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-                    <div className="bg-white rounded-xl w-full max-w-lg p-8 shadow-2xl animate-scaleIn text-center">
-                        <div className="mb-6"><div className="p-4 bg-brand-100 rounded-full text-brand-600 inline-block"><Smartphone size={48} /></div></div>
-                        <h2 className="text-2xl font-black text-slate-800 mb-2">Escaneie o QR Code</h2>
-                        <p className="text-slate-500 mb-6">Abra o aplicativo do seu banco e pague via PIX</p>
-                        <div className="bg-white p-4 rounded-xl border-2 inline-block mb-6"><img src={pixData.img} alt="QR Code Pix" className="w-64 h-64" /></div>
-                        <div className="mb-8"><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Valor</p><p className="text-4xl font-black text-brand-600">{formatCurrency(cartControl.total)}</p></div>
-                        <div className="space-y-4">
-                            <div className="relative"><input readOnly value={pixData.payload} className="w-full pl-4 pr-12 py-3 bg-slate-50 rounded-lg text-xs font-mono truncate" /><button onClick={copyPixPayload} className="absolute right-2 top-2 p-1.5 bg-white rounded"><Copy size={16} /></button></div>
-                            <Button onClick={() => finalizeSale('PIX')} className="w-full py-4 text-lg font-bold">PAGAMENTO RECEBIDO</Button>
-                            <button onClick={() => setActiveModal('PAYMENT')} className="text-slate-400 hover:text-red-500 font-bold">Cancelar</button>
+            {
+                activeModal === 'PIX_WAITING' && pixData && (
+                    <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-6 backdrop-blur-xl animate-fadeIn">
+                        <div className="bg-white rounded-[3rem] w-full max-w-lg p-12 shadow-[0_50px_150px_rgba(0,0,0,0.5)] animate-scaleIn text-center border border-white/20">
+                            <div className="mb-8">
+                                <div className="p-6 bg-blue-100 text-blue-600 rounded-[2rem] inline-block shadow-lg shadow-blue-50 animate-pulse-subtle">
+                                    <Smartphone size={56} />
+                                </div>
+                            </div>
+                            <h2 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Escaneie o QR Code</h2>
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mb-10">Abra o app do seu banco para pagar</p>
+
+                            <div className="bg-white p-6 rounded-[2.5rem] border-2 border-slate-100 inline-block mb-10 shadow-inner">
+                                <img src={pixData.img} alt="QR Code Pix" className="w-64 h-64" />
+                            </div>
+
+                            <div className="mb-10 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Valor Total</p>
+                                <p className="text-5xl font-black text-blue-600 tracking-tighter">{formatCurrency(cartControl.total)}</p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="relative group">
+                                    <input readOnly value={pixData.payload} className="w-full pl-6 pr-16 py-4 bg-slate-100 rounded-2xl text-[10px] font-mono truncate border-2 border-transparent focus:border-blue-500 transition-all" />
+                                    <button onClick={copyPixPayload} className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 bg-white hover:bg-blue-600 hover:text-white rounded-xl shadow-md transition-all active:scale-90">
+                                        <Copy size={18} />
+                                    </button>
+                                </div>
+                                <button
+                                    onClick={() => finalizeSale('PIX')}
+                                    className="w-full py-6 bg-slate-900 hover:bg-emerald-600 text-white text-xl font-black rounded-[2rem] shadow-2xl transition-all transform hover:-translate-y-1 active:scale-95 uppercase tracking-widest"
+                                >
+                                    Pagamento Confirmado
+                                </button>
+                                <button onClick={() => setActiveModal('PAYMENT')} className="text-slate-400 hover:text-red-500 font-black uppercase tracking-widest text-[10px] transition-colors">
+                                    Cancelar Operação
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* CUSTOMER MODAL */}
-            {activeModal === 'CUSTOMER' && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl w-full max-w-lg p-6 shadow-2xl animate-scaleIn">
-                        <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2"><User size={24} className="text-blue-600" /> Identificar Cliente</h3>
-                        <div className="max-h-64 overflow-y-auto space-y-3 mb-6 pr-2">
-                            <button onClick={() => { setSelectedCustomer(null); setActiveModal('NONE'); searchInputRef.current?.focus(); }} className="w-full text-left p-4 hover:bg-blue-50 rounded-xl border-2 transition"><span className="font-bold text-lg">Consumidor Final</span></button>
-                            {customers.map(c => (<button key={c.id} onClick={() => { setSelectedCustomer(c); setActiveModal('NONE'); searchInputRef.current?.focus(); }} className="w-full text-left p-4 hover:bg-blue-50 rounded-xl border-2 flex justify-between items-center group"><div><span className="font-bold block group-hover:text-blue-700">{c.name}</span><span className="text-xs text-slate-400">{c.email || 'Sem email'}</span></div><span className="font-mono text-sm bg-slate-100 px-3 py-1 rounded-lg">{c.document}</span></button>))}
-                        </div>
-                        <Button variant="secondary" onClick={() => setActiveModal('NONE')} className="w-full py-3">Cancelar</Button>
-                    </div>
-                </div>
-            )}
+            {
+                activeModal === 'CUSTOMER' && (
+                    <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-6 backdrop-blur-xl animate-fadeIn">
+                        <div className="bg-white rounded-[3rem] w-full max-w-2xl p-10 shadow-[0_50px_150px_rgba(0,0,0,0.5)] animate-scaleIn border border-white/20">
+                            <div className="flex items-center gap-5 mb-10">
+                                <div className="p-5 bg-blue-600 text-white rounded-[2rem] shadow-lg shadow-blue-100">
+                                    <User size={32} />
+                                </div>
+                                <div>
+                                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">Identificar Cliente</h3>
+                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">Vincule um cliente à venda atual</p>
+                                </div>
+                            </div>
 
-            {/* F10 MENU */}
-            {activeModal === 'MENU' && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden animate-fadeIn">
-                        <div className="p-6 border-b flex justify-between items-center bg-slate-50"><h2 className="text-xl font-bold flex items-center gap-2"><Menu className="text-blue-600" /> Menu de Funções</h2><button onClick={() => setActiveModal('NONE')} className="text-slate-400 hover:text-red-500"><X /></button></div>
-                        <div className="p-8 grid grid-cols-2 md:grid-cols-3 gap-6">
-                            <button onClick={() => { cashRegister.setModal('SUPRIMENTO'); cashRegister.setTransactionAmount(''); cashRegister.setTransactionReason(''); setActiveModal('NONE'); }} className="p-6 hover:bg-emerald-50 rounded-xl flex flex-col items-center gap-3 transition border"><div className="p-3 bg-emerald-100 rounded-full text-emerald-600"><TrendingUp size={32} /></div><span>Suprimento</span></button>
-                            <button onClick={() => { cashRegister.setModal('SANGRIA'); cashRegister.setTransactionAmount(''); cashRegister.setTransactionReason(''); setActiveModal('NONE'); }} className="p-6 hover:bg-red-50 rounded-xl flex flex-col items-center gap-3 transition border"><div className="p-3 bg-red-100 rounded-full text-red-600"><TrendingDown size={32} /></div><span>Sangria</span></button>
-                            <button onClick={() => { cashRegister.initiateCloseRegister(); setActiveModal('NONE'); }} className="p-6 hover:bg-amber-50 rounded-xl flex flex-col items-center gap-3 transition border"><div className="p-3 bg-amber-100 rounded-full text-amber-600"><AlertOctagon size={32} /></div><span>Fechar Caixa</span></button>
+                            <div className="max-h-[400px] overflow-y-auto space-y-4 mb-10 pr-4 custom-scrollbar">
+                                <button
+                                    onClick={() => { setSelectedCustomer(null); setActiveModal('NONE'); searchInputRef.current?.focus(); }}
+                                    className="w-full text-left p-6 hover:bg-slate-900 hover:text-white rounded-[2rem] border-2 border-slate-100 transition-all duration-300 group flex justify-between items-center"
+                                >
+                                    <div>
+                                        <span className="font-black text-xl uppercase tracking-tight">Consumidor Final</span>
+                                        <p className="text-xs opacity-50 font-bold uppercase tracking-widest mt-1">Venda sem identificação</p>
+                                    </div>
+                                    <div className="w-12 h-12 rounded-2xl bg-slate-100 group-hover:bg-white/20 flex items-center justify-center transition-colors">
+                                        <ChevronRight size={24} />
+                                    </div>
+                                </button>
+
+                                {customers.map(c => (
+                                    <button
+                                        key={c.id}
+                                        onClick={() => { setSelectedCustomer(c); setActiveModal('NONE'); searchInputRef.current?.focus(); }}
+                                        className="w-full text-left p-6 hover:bg-blue-600 hover:text-white rounded-[2rem] border-2 border-slate-100 transition-all duration-300 group flex justify-between items-center"
+                                    >
+                                        <div className="flex-1 pr-4">
+                                            <span className="font-black text-xl uppercase tracking-tight block group-hover:translate-x-1 transition-transform">{c.name}</span>
+                                            <div className="flex items-center gap-3 mt-2">
+                                                <span className="text-[10px] font-black bg-slate-100 group-hover:bg-white/20 px-2 py-1 rounded uppercase tracking-widest">{c.document}</span>
+                                                <span className="text-xs opacity-50 font-medium truncate">{c.email || 'Sem e-mail cadastrado'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="w-12 h-12 rounded-2xl bg-slate-100 group-hover:bg-white/20 flex items-center justify-center transition-colors">
+                                            <ChevronRight size={24} />
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={() => setActiveModal('NONE')}
+                                className="w-full py-5 bg-slate-100 hover:bg-slate-200 text-slate-500 font-black rounded-[1.5rem] transition-all uppercase tracking-widest text-xs"
+                            >
+                                Cancelar Operação
+                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-            {/* GENERIC CASH MODAL */}
-            {(cashRegister.modal === 'SANGRIA' || cashRegister.modal === 'SUPRIMENTO') && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-scaleIn">
-                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">{cashRegister.modal === 'SANGRIA' ? <TrendingDown className="text-red-500" /> : <TrendingUp className="text-emerald-500" />}{cashRegister.modal === 'SANGRIA' ? 'Realizar Sangria' : 'Realizar Suprimento'}</h3>
-                        <div className="space-y-4"><Input label="Valor (R$)" type="number" autoFocus value={cashRegister.transactionAmount} onChange={e => cashRegister.setTransactionAmount(e.target.value)} /><Input label="Motivo / Descrição" value={cashRegister.transactionReason} onChange={e => cashRegister.setTransactionReason(e.target.value)} /></div>
-                        <div className="mt-6 flex justify-end gap-3"><Button variant="secondary" onClick={() => cashRegister.setModal('NONE')}>Cancelar</Button><Button variant={cashRegister.modal === 'SANGRIA' ? 'danger' : 'success'} onClick={() => cashRegister.addCashTransaction(cashRegister.modal === 'SANGRIA' ? 'BLEED' : 'SUPPLY')}>Confirmar</Button></div>
+            {/* MENU MODAL */}
+            {
+                activeModal === 'MENU' && (
+                    <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-6 backdrop-blur-xl animate-fadeIn">
+                        <div className="bg-white rounded-[3rem] w-full max-w-4xl p-12 shadow-[0_50px_150px_rgba(0,0,0,0.5)] animate-scaleIn border border-white/20">
+                            <div className="flex items-center justify-between mb-12">
+                                <div className="flex items-center gap-5">
+                                    <div className="p-5 bg-slate-900 text-white rounded-[2rem] shadow-xl">
+                                        <Menu size={32} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-3xl font-black text-slate-900 tracking-tight">Menu de Funções</h3>
+                                        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">Acesso rápido às operações do sistema</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setActiveModal('NONE')} className="p-4 hover:bg-slate-100 rounded-2xl transition-colors text-slate-400 hover:text-slate-900">
+                                    <X size={32} />
+                                </button>
+                                <div className="grid grid-cols-3 gap-6 mb-12">
+                                    {[
+                                        { label: 'Suprimento', icon: <PlusCircle size={32} />, color: 'emerald', action: () => cashRegister.openGenericModal('SUPRIMENTO') },
+                                        { label: 'Sangria', icon: <MinusCircle size={32} />, color: 'red', action: () => cashRegister.openGenericModal('SANGRIA') },
+                                        { label: 'Fechar Caixa', icon: <Lock size={32} />, color: 'slate', action: cashRegister.closeRegister },
+                                        { label: 'Limpar Carrinho', icon: <Trash2 size={32} />, color: 'orange', action: () => { cartControl.clearCart(); setActiveModal('NONE'); } },
+                                        { label: 'Últimas Vendas', icon: <History size={32} />, color: 'blue', action: () => { if (lastSale) { setPrintType('SALE'); setActiveModal('PRINT_RECEIPT'); } else { showAlert('Nenhuma venda realizada nesta sessão.', 'Aviso', 'info'); } } },
+                                        { label: 'Configurações', icon: <SettingsIcon size={32} />, color: 'purple', action: () => window.location.href = '/settings' }
+                                    ].map(item => (
+                                        <button
+                                            key={item.label}
+                                            onClick={item.action}
+                                            className="p-8 bg-slate-50 hover:bg-white border-2 border-transparent hover:border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 transition-all duration-300 group hover:shadow-2xl transform hover:-translate-y-2"
+                                        >
+                                            <div className={`p-5 rounded-3xl group-hover:scale-110 transition-transform duration-300 ${item.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
+                                                    item.color === 'red' ? 'bg-red-50 text-red-600' :
+                                                        item.color === 'slate' ? 'bg-slate-100 text-slate-600' :
+                                                            item.color === 'orange' ? 'bg-orange-50 text-orange-600' :
+                                                                item.color === 'blue' ? 'bg-blue-50 text-blue-600' :
+                                                                    'bg-purple-50 text-purple-600'
+                                                }`}>
+                                                {item.icon}
+                                            </div>
+                                            <span className="font-black text-sm text-slate-800 uppercase tracking-widest">{item.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="bg-slate-900 rounded-[2rem] p-8 flex items-center justify-between text-white">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                                            <User size={24} className="text-blue-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Operador Logado</p>
+                                            <p className="font-black text-lg">{StorageService.getCurrentUser()?.name || 'ADMINISTRADOR'}</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => window.location.href = '/'} className="px-8 py-4 bg-white/10 hover:bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-95">
+                                        Sair do PDV
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
+
+            {/* GENERIC CASH MODAL (SANGRIA / SUPRIMENTO) */}
+            {
+                cashRegister.modal === 'GENERIC' && (
+                    <div className="fixed inset-0 bg-slate-950/90 z-[60] flex items-center justify-center p-6 backdrop-blur-xl animate-fadeIn">
+                        <div className="bg-white rounded-[3rem] w-full max-w-xl shadow-[0_50px_150px_rgba(0,0,0,0.5)] animate-scaleIn overflow-hidden border border-white/20">
+                            <div className={`p-10 flex justify-between items-center border-b border-slate-100 ${cashRegister.genericType === 'SUPRIMENTO' ? 'bg-emerald-50/50' : 'bg-red-50/50'}`}>
+                                <div className="flex items-center gap-5">
+                                    <div className={`p-4 rounded-3xl text-white shadow-lg rotate-3 ${cashRegister.genericType === 'SUPRIMENTO' ? 'bg-emerald-500 shadow-emerald-100' : 'bg-red-500 shadow-red-100'}`}>
+                                        {cashRegister.genericType === 'SUPRIMENTO' ? <PlusCircle size={28} /> : <MinusCircle size={28} />}
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">{cashRegister.genericType}</h2>
+                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Movimentação manual de caixa</p>
+                                    </div>
+                                </div>
+                                <button onClick={cashRegister.closeGenericModal} className="p-3 hover:bg-white rounded-2xl transition-colors text-slate-400 hover:text-slate-900 shadow-sm">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="p-12 space-y-10">
+                                <div>
+                                    <label className="block text-slate-400 font-black mb-4 text-[10px] uppercase tracking-[0.3em] text-center">Valor da Operação (R$)</label>
+                                    <div className="relative max-w-xs mx-auto">
+                                        <input
+                                            autoFocus
+                                            type="number"
+                                            value={cashRegister.genericValue}
+                                            onChange={e => cashRegister.setGenericValue(e.target.value)}
+                                            className="w-full text-center text-5xl py-6 font-black border-none bg-slate-50 focus:ring-0 text-slate-900 rounded-[2rem] shadow-inner placeholder-slate-200"
+                                            placeholder="0,00"
+                                        />
+                                        <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-24 h-1 rounded-full shadow-lg ${cashRegister.genericType === 'SUPRIMENTO' ? 'bg-emerald-500 shadow-emerald-200' : 'bg-red-500 shadow-red-200'}`}></div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observação / Motivo</label>
+                                    <textarea
+                                        value={cashRegister.genericNote}
+                                        onChange={e => cashRegister.setGenericNote(e.target.value)}
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] p-6 focus:ring-8 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all font-bold text-slate-800 placeholder-slate-300 min-h-[120px] resize-none"
+                                        placeholder="Descreva o motivo desta movimentação..."
+                                    />
+                                </div>
+
+                                <button
+                                    onClick={cashRegister.handleGenericAction}
+                                    disabled={!cashRegister.genericValue || parseFloat(cashRegister.genericValue) <= 0}
+                                    className={`w-full py-6 text-xl font-black shadow-2xl text-white rounded-3xl transition-all transform hover:-translate-y-1 active:scale-95 uppercase tracking-widest disabled:opacity-20 ${cashRegister.genericType === 'SUPRIMENTO' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
+                                >
+                                    Confirmar {cashRegister.genericType}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
         </div>
     );
 };
