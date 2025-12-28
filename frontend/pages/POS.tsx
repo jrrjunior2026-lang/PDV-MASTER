@@ -421,7 +421,7 @@ export const POS: React.FC = () => {
                 <div className="w-full md:w-1/2 flex flex-col bg-slate-50 relative border-l border-slate-300">
 
                     {/* 1. TOP BAR */}
-                    <div className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 z-10 shadow-sm shrink-0">
+                    <div className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 z-10 shadow-sm shrink-0">
                         <div className="flex items-center gap-4">
                             <div className={`p-3 rounded-2xl shadow-sm transition-all duration-300 ${selectedCustomer ? 'bg-blue-600 text-white rotate-3' : 'bg-slate-100 text-slate-400'}`}>
                                 <User size={24} />
@@ -443,50 +443,50 @@ export const POS: React.FC = () => {
                     </div>
 
                     {/* 2. MIDDLE: HERO LAST ITEM */}
-                    <div className="flex-1 flex flex-col justify-center items-center p-10 z-10 relative overflow-hidden bg-gradient-to-b from-slate-50 to-white">
+                    <div className="flex-1 flex flex-col justify-center items-center p-6 z-10 relative overflow-hidden bg-gradient-to-b from-slate-50 to-white">
                         {/* Decorative Background Elements */}
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-50 rounded-full blur-[100px] opacity-50 pointer-events-none"></div>
 
-                        <p className="text-blue-600 font-black uppercase tracking-[0.3em] text-[10px] mb-8 flex items-center gap-3 self-center bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                        <p className="text-blue-600 font-black uppercase tracking-[0.3em] text-[9px] mb-4 flex items-center gap-3 self-center bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
                             <Monitor size={14} className="animate-pulse" /> Último Registro
                         </p>
 
                         {lastItem ? (
                             <div className="animate-slideInRight w-full max-w-2xl text-center relative z-10">
-                                <h1 className="text-5xl md:text-6xl font-black text-slate-900 leading-tight mb-8 drop-shadow-sm uppercase break-words line-clamp-2 py-2 px-4 tracking-tight">
+                                <h1 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight mb-4 drop-shadow-sm uppercase break-words line-clamp-2 py-2 px-4 tracking-tight">
                                     {lastItem.name}
                                 </h1>
-                                <div className="flex items-center justify-center gap-12 border-t border-slate-100 pt-10">
+                                <div className="flex items-center justify-center gap-8 border-t border-slate-100 pt-6">
                                     <div className="text-center">
-                                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Unitário</p>
-                                        <p className="text-3xl font-bold text-slate-500">{formatCurrency(lastItem.price)}</p>
+                                        <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] mb-1">Unitário</p>
+                                        <p className="text-2xl font-bold text-slate-500">{formatCurrency(lastItem.price)}</p>
                                     </div>
-                                    <div className="w-[1px] h-12 bg-slate-100"></div>
+                                    <div className="w-[1px] h-10 bg-slate-100"></div>
                                     <div className="text-center">
-                                        <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Total Item</p>
-                                        <p className="text-6xl font-black text-blue-600 tracking-tighter drop-shadow-md">{formatCurrency(lastItem.total)}</p>
+                                        <p className="text-blue-400 text-[9px] font-black uppercase tracking-[0.2em] mb-1">Total Item</p>
+                                        <p className="text-5xl font-black text-blue-600 tracking-tighter drop-shadow-md">{formatCurrency(lastItem.total)}</p>
                                     </div>
                                 </div>
                             </div>
                         ) : (
                             <div className="text-center opacity-10 select-none">
-                                <h1 className="text-8xl md:text-[12rem] font-black text-slate-900 uppercase tracking-tighter leading-none">LIVRE</h1>
-                                <p className="text-2xl font-bold tracking-[1em] mt-4">AGUARDANDO PRODUTO</p>
+                                <h1 className="text-6xl md:text-[8rem] font-black text-slate-900 uppercase tracking-tighter leading-none">LIVRE</h1>
+                                <p className="text-xl font-bold tracking-[1em] mt-2">AGUARDANDO PRODUTO</p>
                             </div>
                         )}
                     </div>
 
                     {/* 3. SEARCH BAR INTEGRATED */}
-                    <div className="px-10 pb-10 pt-4 z-20 shrink-0 w-full max-w-5xl mx-auto">
+                    <div className="px-6 pb-6 pt-2 z-20 shrink-0 w-full max-w-5xl mx-auto">
                         <form onSubmit={handleSearch} className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-                                <Search className="text-blue-500 group-focus-within:text-blue-600 transition-colors" size={28} />
+                                <Search className="text-blue-500 group-focus-within:text-blue-600 transition-colors" size={24} />
                             </div>
                             <input
                                 ref={searchInputRef}
                                 value={search}
                                 onChange={handleInput}
-                                className="block w-full pl-16 pr-6 py-6 border-2 border-slate-200 rounded-2xl leading-5 bg-white placeholder-slate-300 focus:outline-none focus:border-blue-500 focus:ring-8 focus:ring-blue-500/10 text-2xl font-black transition-all shadow-2xl group-hover:border-slate-300"
+                                className="block w-full pl-14 pr-6 py-4 border-2 border-slate-200 rounded-2xl leading-5 bg-white placeholder-slate-300 focus:outline-none focus:border-blue-500 focus:ring-8 focus:ring-blue-500/10 text-xl font-black transition-all shadow-2xl group-hover:border-slate-300"
                                 placeholder="Digitar código ou nome (F1)"
                                 autoComplete="off"
                             />
@@ -537,13 +537,13 @@ export const POS: React.FC = () => {
                     </div>
 
                     {/* 4. BOTTOM: TOTAL & PAY */}
-                    <div className="bg-slate-900 p-10 z-20 text-white shadow-[0_-10px_40px_rgba(0,0,0,0.3)] shrink-0 border-t border-white/5">
-                        <div className="flex justify-between items-center mb-8">
+                    <div className="bg-slate-900 p-6 z-20 text-white shadow-[0_-10px_40px_rgba(0,0,0,0.3)] shrink-0 border-t border-white/5">
+                        <div className="flex justify-between items-center mb-4">
                             <div className="flex flex-col">
-                                <span className="text-blue-400 font-black uppercase tracking-[0.3em] text-[10px] mb-1">Total a Pagar</span>
-                                <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">{cartControl.cart.length} Itens no carrinho</span>
+                                <span className="text-blue-400 font-black uppercase tracking-[0.3em] text-[9px] mb-1">Total a Pagar</span>
+                                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{cartControl.cart.length} Itens no carrinho</span>
                             </div>
-                            <div className="text-7xl font-black tracking-tighter text-white drop-shadow-2xl">
+                            <div className="text-5xl font-black tracking-tighter text-white drop-shadow-2xl">
                                 {formatCurrency(cartControl.total)}
                             </div>
                         </div>
@@ -554,12 +554,12 @@ export const POS: React.FC = () => {
                                 setCashReceived('');
                                 setActiveModal('PAYMENT');
                             }}
-                            className="w-full py-6 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-20 disabled:grayscale disabled:cursor-not-allowed text-white text-3xl font-black uppercase tracking-widest rounded-2xl shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-all transform hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-4 group"
+                            className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-20 disabled:grayscale disabled:cursor-not-allowed text-white text-2xl font-black uppercase tracking-widest rounded-2xl shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-all transform hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-4 group"
                         >
                             <span>Finalizar Venda</span>
                             <div className="flex items-center gap-2">
-                                <span className="bg-white/20 px-2 py-1 rounded text-xs group-hover:bg-white/30 transition-colors">F5</span>
-                                <ChevronRight size={32} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
+                                <span className="bg-white/20 px-2 py-1 rounded text-[10px] group-hover:bg-white/30 transition-colors">F5</span>
+                                <ChevronRight size={24} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
                             </div>
                         </button>
                     </div>
@@ -567,7 +567,7 @@ export const POS: React.FC = () => {
             </div>
 
             {/* FOOTER SHORTCUTS */}
-            <div className="bg-slate-900 border-t border-white/5 py-4 flex justify-center gap-8 text-[10px] uppercase font-black text-slate-400 tracking-[0.2em] shrink-0 overflow-x-auto">
+            <div className="bg-slate-900 border-t border-white/5 py-2 flex justify-center gap-8 text-[9px] uppercase font-black text-slate-400 tracking-[0.2em] shrink-0 overflow-x-auto">
                 {[
                     { k: 'F1', l: 'Busca' }, { k: 'F2', l: 'Cliente' }, { k: 'F5', l: 'Pagamento' },
                     { k: 'F8', l: 'Cancelar Item' }, { k: 'F10', l: 'Menu' }, { k: 'ESC', l: 'Voltar' }
@@ -580,7 +580,7 @@ export const POS: React.FC = () => {
                             window.dispatchEvent(new KeyboardEvent('keydown', { key }));
                         }}
                     >
-                        <span className="bg-white/10 border border-white/10 px-2.5 py-1 rounded-lg text-blue-400 font-black shadow-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">{s.k}</span>
+                        <span className="bg-white/10 border border-white/10 px-2 py-0.5 rounded-lg text-blue-400 font-black shadow-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">{s.k}</span>
                         <span className="group-hover:translate-x-1 transition-transform">{s.l}</span>
                     </button>
                 ))
@@ -1109,11 +1109,11 @@ export const POS: React.FC = () => {
                                             className="p-8 bg-slate-50 hover:bg-white border-2 border-transparent hover:border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 transition-all duration-300 group hover:shadow-2xl transform hover:-translate-y-2"
                                         >
                                             <div className={`p-5 rounded-3xl group-hover:scale-110 transition-transform duration-300 ${item.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
-                                                    item.color === 'red' ? 'bg-red-50 text-red-600' :
-                                                        item.color === 'slate' ? 'bg-slate-100 text-slate-600' :
-                                                            item.color === 'orange' ? 'bg-orange-50 text-orange-600' :
-                                                                item.color === 'blue' ? 'bg-blue-50 text-blue-600' :
-                                                                    'bg-purple-50 text-purple-600'
+                                                item.color === 'red' ? 'bg-red-50 text-red-600' :
+                                                    item.color === 'slate' ? 'bg-slate-100 text-slate-600' :
+                                                        item.color === 'orange' ? 'bg-orange-50 text-orange-600' :
+                                                            item.color === 'blue' ? 'bg-blue-50 text-blue-600' :
+                                                                'bg-purple-50 text-purple-600'
                                                 }`}>
                                                 {item.icon}
                                             </div>

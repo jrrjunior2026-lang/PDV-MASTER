@@ -13,7 +13,7 @@ export const CartPanel: React.FC<CartPanelProps> = ({ cart, cartEndRef, logoUrl 
   return (
     <div className="w-full md:w-1/2 bg-white flex flex-col border-r border-slate-200 relative shadow-2xl z-20 overflow-hidden">
       {/* Background Layer (Logo / Watermark) */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden p-20">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden p-10">
         {logoUrl ? (
           <img
             src={logoUrl}
@@ -34,12 +34,12 @@ export const CartPanel: React.FC<CartPanelProps> = ({ cart, cartEndRef, logoUrl 
 
       {/* Empty State Text Overlay */}
       {cart.length === 0 && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pb-20 pointer-events-none animate-fadeIn">
-          <div className="w-24 h-24 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-500 mb-6 shadow-inner border border-blue-100/50">
-            <Package size={48} className="animate-pulse-subtle" />
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pb-10 pointer-events-none animate-fadeIn">
+          <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 mb-4 shadow-inner border border-blue-100/50">
+            <Package size={32} className="animate-pulse-subtle" />
           </div>
-          <h1 className="text-5xl font-black text-slate-200 uppercase tracking-[0.2em] drop-shadow-sm">Caixa Livre</h1>
-          <p className="text-slate-400 font-bold mt-4 tracking-widest uppercase text-xs opacity-50">Aguardando primeiro item...</p>
+          <h1 className="text-3xl font-black text-slate-200 uppercase tracking-[0.2em] drop-shadow-sm">Caixa Livre</h1>
+          <p className="text-slate-400 font-bold mt-2 tracking-widest uppercase text-[10px] opacity-50">Aguardando primeiro item...</p>
         </div>
       )}
 
@@ -56,9 +56,9 @@ export const CartPanel: React.FC<CartPanelProps> = ({ cart, cartEndRef, logoUrl 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-2 min-h-0 bg-slate-50/30">
               {cart.map((item, idx) => (
                 <div key={item.id} className="grid grid-cols-12 items-center py-4 px-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all duration-300 group animate-slideInRight" style={{ animationDelay: `${idx * 0.05}s` }}>
-                  <div className="col-span-1 text-slate-300 text-xs font-black font-mono">{String(idx + 1).padStart(2, '0')}</div>
+                  <div className="col-span-1 text-slate-300 text-[10px] font-black font-mono">{String(idx + 1).padStart(2, '0')}</div>
                   <div className="col-span-7 pr-4">
-                    <div className="text-lg font-black leading-tight text-slate-800 uppercase tracking-tight group-hover:text-blue-700 transition-colors">{item.name}</div>
+                    <div className="text-base font-black leading-tight text-slate-800 uppercase tracking-tight group-hover:text-blue-700 transition-colors">{item.name}</div>
                     <div className="flex items-center gap-2 mt-1.5">
                       <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase tracking-tighter">{item.qty} {item.unit}</span>
                       <span className="text-slate-300">×</span>
@@ -67,7 +67,7 @@ export const CartPanel: React.FC<CartPanelProps> = ({ cart, cartEndRef, logoUrl 
                     </div>
                   </div>
                   <div className="col-span-4 text-right">
-                    <div className="text-xl font-black text-slate-900 tracking-tighter">
+                    <div className="text-lg font-black text-slate-900 tracking-tighter">
                       {formatCurrency(item.total)}
                     </div>
                   </div>
