@@ -46,14 +46,29 @@ export const ImportNfeModal: React.FC<ImportNfeModalProps> = ({ isOpen, onClose,
             // 1. Register/Update Supplier
             const supplier = await StorageService.saveSupplier(nfeData.supplier);
 
-            // 2. Process Products
+            // 2. Fetch all current products once to avoid multiple requests
+            const allProducts = await StorageService.getProducts();
+
+            // 3. Process Products
             for (const item of nfeData.products) {
-                // Check if product exists by code
-                const products = await StorageService.getProducts();
-                const existingProduct = products.find(p => p.code === item.code);
+                // Check if product exists by code in our local list
+                let existingProduct = allProducts.find(p => p.code === item.code);
 
                 if (existingProduct) {
-                    // Update stock and cost
+                    console.log(`Atualizando produto existente: ${existingProduct.name} (${existingProduct.code})`);
+
+                    // Update cost price and other info
+                    const updatedProduct = {
+                        ...existingProduct,
+                        cost: item.cost || existingProduct.cost,
+                        price: item.price || existingProduct.price,
+                        ncm: item.ncm || existingProduct.ncm,
+                        unit: (item.unit as any) || existingProduct.unit
+                    };
+
+                    await StorageService.saveProduct(updatedProduct);
+
+                    // Update stock
                     await StorageService.updateStock(
                         existingProduct.id,
                         item.quantity || 0,
@@ -61,22 +76,18 @@ export const ImportNfeModal: React.FC<ImportNfeModalProps> = ({ isOpen, onClose,
                         nfeData.number,
                         `Entrada via NFe #${nfeData.number}`
                     );
-
-                    // Update cost price
-                    await StorageService.saveProduct({
-                        ...existingProduct,
-                        cost: item.cost || existingProduct.cost,
-                        price: item.price || existingProduct.price
-                    });
                 } else {
+                    console.log(`Criando novo produto: ${item.name} (${item.code})`);
+
                     // Create new product
+                    const newProductId = crypto.randomUUID();
                     const newProduct: IProduct = {
-                        id: crypto.randomUUID(),
+                        id: newProductId,
                         code: item.code || '',
                         name: item.name || '',
                         price: item.price || 0,
                         cost: item.cost || 0,
-                        stock: item.quantity || 0,
+                        stock: 0, // Start with 0, updateStock will add the quantity
                         ncm: item.ncm || '',
                         cest: '',
                         origin: '0',
@@ -84,23 +95,27 @@ export const ImportNfeModal: React.FC<ImportNfeModalProps> = ({ isOpen, onClose,
                         unit: (item.unit as any) || 'UN',
                         minStock: 0
                     };
+
                     await StorageService.saveProduct(newProduct);
 
-                    // Record in Kardex
+                    // Record in Kardex and update stock
                     await StorageService.updateStock(
-                        newProduct.id,
+                        newProductId,
                         item.quantity || 0,
                         TransactionType.ENTRY,
                         nfeData.number,
                         `Entrada via NFe #${nfeData.number} (Novo Produto)`
                     );
+
+                    // Add to our local list to handle duplicates in the same XML
+                    allProducts.push({ ...newProduct, stock: item.quantity || 0 });
                 }
             }
 
             setStep('FINANCIAL');
-        } catch (error) {
-            console.error(error);
-            alert('Erro ao processar entrada.');
+        } catch (error: any) {
+            console.error('Erro no processamento da NFe:', error);
+            alert(`Erro ao processar entrada: ${error.message || 'Erro desconhecido'}`);
         } finally {
             setLoading(false);
         }

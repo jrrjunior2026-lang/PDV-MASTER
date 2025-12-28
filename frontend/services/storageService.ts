@@ -180,7 +180,7 @@ export const StorageService = {
         description: product.description,
         image_url: product.imageUrl,
         updated_at: new Date().toISOString()
-      });
+      }, { onConflict: 'code' });
 
     if (error) throw error;
     AuditService.log('STOCK_UPDATE', `Produto salvo no Supabase: ${product.name}`, 'INFO');
