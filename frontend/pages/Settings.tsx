@@ -543,7 +543,28 @@ export const Settings: React.FC = () => {
                                                         showAlert('Não foi possível conectar ao ACBr Monitor: ' + response.message, 'Erro', 'error');
                                                     }
                                                 } catch (error: any) {
-                                                    showAlert('Erro ao testar conexão: ' + error.message, 'Erro', 'error');
+                                                    const errorMessage = error.message || 'Erro desconhecido';
+                                                    if (errorMessage.includes('Supabase')) {
+                                                        showAlert(
+                                                            errorMessage + ' Verifique também se a variável VITE_SUPABASE_URL está configurada no arquivo .env do frontend.',
+                                                            'Erro de Conexão com Supabase',
+                                                            'error'
+                                                        );
+                                                    } else if (errorMessage.includes('Firebase')) {
+                                                        showAlert(
+                                                            errorMessage + ' Verifique também se a variável VITE_API_URL está configurada no arquivo .env do frontend.',
+                                                            'Erro de Conexão com Firebase',
+                                                            'error'
+                                                        );
+                                                    } else if (errorMessage.includes('Servidor backend não está rodando')) {
+                                                        showAlert(
+                                                            errorMessage + ' Ou configure VITE_API_URL com a URL do seu backend no Supabase/Firebase.',
+                                                            'Servidor Indisponível',
+                                                            'error'
+                                                        );
+                                                    } else {
+                                                        showAlert('Erro ao testar conexão: ' + errorMessage, 'Erro', 'error');
+                                                    }
                                                 }
                                             }}
                                         >
