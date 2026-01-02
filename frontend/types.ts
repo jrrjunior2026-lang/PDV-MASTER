@@ -122,6 +122,11 @@ export interface ISettings {
     logoUrl: string | null; // Base64 string
     primaryColor: string;
   };
+  acbr?: {
+    host: string;
+    port: number;
+    enabled: boolean;
+  };
 }
 
 export interface ICashRegister {

@@ -8,7 +8,7 @@ import { AuditService } from '../services/auditService'; // Import Audit
 import { SyncStatusIndicator } from '../components/SyncStatus';
 
 export const Settings: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'COMPANY' | 'FISCAL' | 'PAYMENT' | 'APPEARANCE' | 'USERS' | 'SECURITY' | 'SYNC'>('COMPANY');
+    const [activeTab, setActiveTab] = useState<'COMPANY' | 'FISCAL' | 'PAYMENT' | 'APPEARANCE' | 'USERS' | 'SECURITY' | 'SYNC' | 'ACBR'>('COMPANY');
     const [settings, setSettings] = useState<ISettings | null>(null);
 
     useEffect(() => {
@@ -192,6 +192,7 @@ export const Settings: React.FC = () => {
         { id: 'APPEARANCE', label: 'Visual & PDV', icon: <Palette size={20} /> },
         { id: 'USERS', label: 'Usuários', icon: <Users size={20} /> },
         { id: 'SYNC', label: 'Sincronização', icon: <Zap size={20} /> },
+        { id: 'ACBR', label: 'ACBr Monitor', icon: <Zap size={20} className="text-blue-500" /> },
         { id: 'SECURITY', label: 'Segurança & Auditoria', icon: <Shield size={20} /> },
     ];
 
@@ -490,6 +491,65 @@ export const Settings: React.FC = () => {
                             {activeTab === 'SYNC' && (
                                 <div className="animate-fadeIn">
                                     <SyncStatusIndicator />
+                                </div>
+                            )}
+
+                            {activeTab === 'ACBR' && (
+                                <div className="space-y-5 animate-fadeIn">
+                                    <h3 className="text-lg font-bold border-b border-slate-100 pb-2 flex items-center gap-2">
+                                        <Zap className="text-blue-500" /> Integração ACBr Monitor
+                                    </h3>
+                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-sm text-blue-800 mb-4">
+                                        <p className="font-bold">ℹ️ Sobre o ACBr Monitor</p>
+                                        <p>O ACBr Monitor é uma ferramenta que facilita a emissão de documentos fiscais (NF-e, NFC-e). Certifique-se de que ele está rodando e com o servidor TCP ativo.</p>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                        <input
+                                            type="checkbox"
+                                            id="acbr-enabled"
+                                            checked={settings.acbr?.enabled || false}
+                                            onChange={e => setSettings({ ...settings, acbr: { ...(settings.acbr || { host: 'localhost', port: 3434 }), enabled: e.target.checked } })}
+                                            className="w-5 h-5 text-brand-600 rounded focus:ring-brand-500"
+                                        />
+                                        <label htmlFor="acbr-enabled" className="font-bold text-slate-700 cursor-pointer">Ativar integração com ACBr Monitor</label>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Input
+                                            label="Host (IP)"
+                                            value={settings.acbr?.host || 'localhost'}
+                                            onChange={e => setSettings({ ...settings, acbr: { ...(settings.acbr || { host: 'localhost', port: 3434, enabled: false }), host: e.target.value } })}
+                                            placeholder="Ex: localhost ou 192.168.1.10"
+                                        />
+                                        <Input
+                                            label="Porta TCP"
+                                            type="number"
+                                            value={settings.acbr?.port || 3434}
+                                            onChange={e => setSettings({ ...settings, acbr: { ...(settings.acbr || { host: 'localhost', port: 3434, enabled: false }), port: parseInt(e.target.value) } })}
+                                        />
+                                    </div>
+
+                                    <div className="pt-4">
+                                        <Button
+                                            variant="secondary"
+                                            className="gap-2"
+                                            onClick={async () => {
+                                                try {
+                                                    const response = await apiService.get('/fiscal/status');
+                                                    if (response.success) {
+                                                        showAlert('Conexão com ACBr Monitor estabelecida com sucesso!', 'Sucesso', 'success');
+                                                    } else {
+                                                        showAlert('Não foi possível conectar ao ACBr Monitor: ' + response.message, 'Erro', 'error');
+                                                    }
+                                                } catch (error: any) {
+                                                    showAlert('Erro ao testar conexão: ' + error.message, 'Erro', 'error');
+                                                }
+                                            }}
+                                        >
+                                            Testar Conexão
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
 

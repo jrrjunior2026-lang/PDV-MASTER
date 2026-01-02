@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, CreditCard, CheckCircle, Wifi, WifiOff, RefreshCcw, Home, User, Menu, DollarSign, X, AlertOctagon, TrendingUp, TrendingDown, Lock, ChevronRight, Monitor, Printer, Package, Copy, Smartphone, FileText, Calendar, Clock, ChevronsLeft, PlusCircle, MinusCircle, Trash2, History, Settings as SettingsIcon } from 'lucide-react';
+import { Search, CreditCard, CheckCircle, Wifi, WifiOff, RefreshCcw, Home, User, Menu, DollarSign, X, AlertOctagon, TrendingUp, TrendingDown, Lock, ChevronRight, Monitor, Printer, Package, Copy, Smartphone, FileText, Calendar, Clock, ChevronsLeft, PlusCircle, MinusCircle, Trash2, History, Settings as SettingsIcon, Zap } from 'lucide-react';
 
 import { StorageService } from '../services/storageService';
 import { IProduct, ICustomer, ISettings, ISale } from '../types';
 import { formatCurrency, Button, Input, ConfirmModal, AlertModal } from '../components/UI';
 import { PixService } from '../services/pixService';
+import { apiService } from '../services/apiService';
 import QRCode from 'qrcode';
 import { AuditService } from '../services/auditService';
 
@@ -56,6 +57,7 @@ export const POS: React.FC = () => {
     const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
     const [receiptType, setReceiptType] = useState<'NFCE' | 'RECIBO'>('NFCE');
     const [printType, setPrintType] = useState<'SALE' | 'CLOSING'>('SALE');
+    const [fiscalLoading, setFiscalLoading] = useState(false);
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const cashReceivedInputRef = useRef<HTMLInputElement>(null);
@@ -260,6 +262,24 @@ export const POS: React.FC = () => {
             globalPrintArea.innerHTML = '';
             closePrintModal();
         }, 500);
+    };
+
+    const handleEmitirNFCe = async () => {
+        if (!lastSale) return;
+        setFiscalLoading(true);
+        try {
+            const response = await apiService.post(`/fiscal/emitir-nfce/${lastSale.id}`);
+            if (response.success) {
+                showAlert('NFC-e emitida com sucesso!', 'Sucesso', 'success');
+                // If the response contains the XML path, we could potentially use it for printing
+            } else {
+                showAlert('Erro ao emitir NFC-e: ' + response.message, 'Erro', 'error');
+            }
+        } catch (error: any) {
+            showAlert('Erro ao emitir NFC-e: ' + error.message, 'Erro', 'error');
+        } finally {
+            setFiscalLoading(false);
+        }
     };
 
     const closePrintModal = () => {
@@ -829,6 +849,16 @@ export const POS: React.FC = () => {
                                         <Printer size={28} />
                                         Imprimir {printType === 'SALE' ? (receiptType === 'NFCE' ? 'NFC-e' : 'Recibo') : 'Relatório'}
                                     </button>
+                                    {settings?.acbr?.enabled && printType === 'SALE' && (
+                                        <button
+                                            onClick={handleEmitirNFCe}
+                                            disabled={fiscalLoading}
+                                            className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white text-xl font-black rounded-[2rem] shadow-2xl transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-4 uppercase tracking-widest"
+                                        >
+                                            <Zap size={28} />
+                                            {fiscalLoading ? 'Emitindo...' : 'Emitir NFC-e (ACBr)'}
+                                        </button>
+                                    )}
                                     <button
                                         onClick={closePrintModal}
                                         className="w-full py-5 bg-slate-100 hover:bg-slate-200 text-slate-500 font-black rounded-[1.5rem] transition-all uppercase tracking-widest text-xs"

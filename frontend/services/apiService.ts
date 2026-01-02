@@ -3,6 +3,29 @@ import { supabase } from './supabaseClient';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export const apiService = {
+    get: async (endpoint: string) => {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        if (!response.ok) throw new Error('Erro na requisição');
+        return response.json();
+    },
+
+    post: async (endpoint: string, data?: any) => {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: data ? JSON.stringify(data) : undefined
+        });
+        if (!response.ok) throw new Error('Erro na requisição');
+        return response.json();
+    },
+
     // --- Logo Upload using Supabase ---
     uploadLogo: async (logoFile: File): Promise<{ message: string, path: string }> => {
         try {

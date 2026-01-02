@@ -17,6 +17,7 @@ import { settingRoutes } from './routes/settings.js';
 import { registerRoutes } from './routes/cashRegister.js';
 import { syncRoutes } from './routes/sync.js';
 import { reportRoutes } from './routes/reports.js';
+import { fiscalRoutes } from './routes/fiscal.js';
 import adminRoutes from './routes/admin.js';
 import { auditMiddleware, errorHandler, notFoundHandler } from './middleware/index.js';
 import { connectDB } from './config/database.js';
@@ -146,6 +147,7 @@ apiRouter.use('/settings', settingRoutes);
 apiRouter.use('/register', registerRoutes);
 apiRouter.use('/sync', syncRoutes);
 apiRouter.use('/reports', reportRoutes);
+apiRouter.use('/fiscal', fiscalRoutes);
 apiRouter.use('/admin', adminRoutes);
 
 // Mount the API router at both /api (for local) and / (for Firebase)

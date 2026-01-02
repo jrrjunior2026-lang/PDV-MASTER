@@ -28,6 +28,11 @@ const DEFAULT_SETTINGS: ISettings = {
   appearance: {
     logoUrl: null,
     primaryColor: '#0ea5e9'
+  },
+  acbr: {
+    host: 'localhost',
+    port: 3434,
+    enabled: false
   }
 };
 
@@ -111,6 +116,7 @@ export const StorageService = {
       if (item.key === 'fiscal') settings.fiscal = item.value;
       if (item.key === 'payment') settings.payment = item.value;
       if (item.key === 'app_logo_path') settings.appearance.logoUrl = item.value;
+      if (item.key === 'acbr') settings.acbr = item.value;
     });
 
     return settings;
@@ -120,7 +126,8 @@ export const StorageService = {
     const updates = [
       { key: 'company', value: settings.company },
       { key: 'fiscal', value: settings.fiscal },
-      { key: 'payment', value: settings.payment }
+      { key: 'payment', value: settings.payment },
+      { key: 'acbr', value: settings.acbr }
     ];
 
     const { error } = await supabase
