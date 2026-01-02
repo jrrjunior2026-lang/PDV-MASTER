@@ -176,41 +176,84 @@ class SyncService {
     }
   }
 
-  // Sync individual item (simulated API call)
+  // Sync individual item com Supabase
   private static async syncItem(item: SyncQueue): Promise<void> {
-    // Simulate API latency
-    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+    const { supabase } = await import('./supabaseClient');
+    const { apiService } = await import('./apiService');
 
-    // Simulate random failures (10% chance)
-    if (Math.random() < 0.1) {
-      throw new Error('Simulated network error');
+    try {
+      // Se o item tem endpoint e data, usar apiService
+      if (item.data.endpoint && item.data.data) {
+        await apiService.post(item.data.endpoint, item.data.data);
+        AuditService.log(
+          'DATA_SYNC',
+          `Synced ${item.type} ${item.collection} via API`,
+          'INFO'
+        );
+        return;
+      }
+
+      // Caso contrário, usar Supabase diretamente
+      switch (item.collection) {
+        case 'PRODUCTS':
+          if (item.type === 'CREATE' || item.type === 'UPDATE') {
+            const { error } = await supabase
+              .from('products')
+              .upsert(item.data, { onConflict: 'id' });
+            if (error) throw error;
+          } else if (item.type === 'DELETE') {
+            const { error } = await supabase
+              .from('products')
+              .delete()
+              .eq('id', item.data.id);
+            if (error) throw error;
+          }
+          break;
+
+        case 'CUSTOMERS':
+          if (item.type === 'CREATE' || item.type === 'UPDATE') {
+            const { error } = await supabase
+              .from('customers')
+              .upsert(item.data, { onConflict: 'id' });
+            if (error) throw error;
+          } else if (item.type === 'DELETE') {
+            const { error } = await supabase
+              .from('customers')
+              .delete()
+              .eq('id', item.data.id);
+            if (error) throw error;
+          }
+          break;
+
+        case 'SALES':
+          if (item.type === 'CREATE' || item.type === 'UPDATE') {
+            const { error } = await supabase
+              .from('sales')
+              .upsert(item.data, { onConflict: 'id' });
+            if (error) throw error;
+          }
+          break;
+
+        case 'FINANCE':
+          if (item.type === 'CREATE' || item.type === 'UPDATE') {
+            const { error } = await supabase
+              .from('finance_transactions')
+              .upsert(item.data, { onConflict: 'id' });
+            if (error) throw error;
+          }
+          break;
+      }
+
+      // Log successful sync
+      AuditService.log(
+        'DATA_SYNC',
+        `Synced ${item.type} ${item.collection}: ${item.data.name || item.data.id || 'N/A'}`,
+        'INFO'
+      );
+    } catch (error: any) {
+      console.error(`Sync error for ${item.collection}:`, error);
+      throw new Error(error.message || 'Sync failed');
     }
-
-    // Simulate server-side validation
-    switch (item.collection) {
-      case 'PRODUCTS':
-        if (item.type === 'CREATE' && !item.data.code) {
-          throw new Error('Product code is required');
-        }
-        break;
-      case 'CUSTOMERS':
-        if (item.type === 'CREATE' && !item.data.document) {
-          throw new Error('Customer document is required');
-        }
-        break;
-      case 'SALES':
-        if (item.type === 'CREATE' && item.data.total <= 0) {
-          throw new Error('Sale total must be positive');
-        }
-        break;
-    }
-
-    // Log successful sync
-    AuditService.log(
-      'DATA_SYNC',
-      `Synced ${item.type} ${item.collection}: ${item.data.name || item.data.id}`,
-      'INFO'
-    );
   }
 
   // Manual sync trigger

@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/PDV-MASTER/dev-sw.js?dev-sw', { scope: '/PDV-MASTER/', type: 'classic' })

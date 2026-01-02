@@ -31,8 +31,9 @@ export const ImportNfeModal: React.FC<ImportNfeModalProps> = ({ isOpen, onClose,
                 const data = NfeService.parseXml(xmlString);
                 setNfeData(data);
                 setStep('CONFERENCE');
-            } catch (error) {
-                alert('Erro ao processar XML da NFe. Verifique se o arquivo é válido.');
+            } catch (error: any) {
+                console.error('Erro ao processar XML:', error);
+                alert(`Erro ao processar XML da NF-e:\n${error.message || 'Verifique se o arquivo é uma NF-e válida.'}`);
             }
         };
         reader.readAsText(file);
@@ -43,79 +44,125 @@ export const ImportNfeModal: React.FC<ImportNfeModalProps> = ({ isOpen, onClose,
         setLoading(true);
 
         try {
+            // Validar dados antes de processar
+            if (!nfeData.supplier.name || !nfeData.supplier.document) {
+                throw new Error('Dados do fornecedor incompletos. Nome e documento são obrigatórios.');
+            }
+
+            if (!nfeData.products || nfeData.products.length === 0) {
+                throw new Error('Nenhum produto encontrado na NF-e.');
+            }
+
             // 1. Register/Update Supplier
-            const supplier = await StorageService.saveSupplier(nfeData.supplier);
+            let supplier;
+            try {
+                supplier = await StorageService.saveSupplier(nfeData.supplier);
+            } catch (error: any) {
+                console.error('Erro ao salvar fornecedor:', error);
+                throw new Error(`Erro ao salvar fornecedor: ${error.message || 'Erro desconhecido'}`);
+            }
 
             // 2. Fetch all current products once to avoid multiple requests
             const allProducts = await StorageService.getProducts();
 
             // 3. Process Products
+            const processedProducts: string[] = [];
+            const errors: string[] = [];
+
             for (const item of nfeData.products) {
-                // Check if product exists by code in our local list
-                let existingProduct = allProducts.find(p => p.code === item.code);
+                try {
+                    // Validar item
+                    if (!item.code || !item.name) {
+                        errors.push(`Produto sem código ou nome: ${item.name || 'Desconhecido'}`);
+                        continue;
+                    }
 
-                if (existingProduct) {
-                    console.log(`Atualizando produto existente: ${existingProduct.name} (${existingProduct.code})`);
+                    // Check if product exists by code in our local list
+                    let existingProduct = allProducts.find(p => p.code === item.code);
 
-                    // Update cost price and other info
-                    const updatedProduct = {
-                        ...existingProduct,
-                        cost: item.cost || existingProduct.cost,
-                        price: item.price || existingProduct.price,
-                        ncm: item.ncm || existingProduct.ncm,
-                        unit: (item.unit as any) || existingProduct.unit
-                    };
+                    if (existingProduct) {
+                        console.log(`Atualizando produto existente: ${existingProduct.name} (${existingProduct.code})`);
 
-                    await StorageService.saveProduct(updatedProduct);
+                        // Update cost price and other info
+                        const updatedProduct = {
+                            ...existingProduct,
+                            cost: item.cost || existingProduct.cost || 0,
+                            price: item.price || existingProduct.price || 0,
+                            ncm: item.ncm || existingProduct.ncm || '',
+                            unit: (item.unit as any) || existingProduct.unit || 'UN'
+                        };
 
-                    // Update stock
-                    await StorageService.updateStock(
-                        existingProduct.id,
-                        item.quantity || 0,
-                        TransactionType.ENTRY,
-                        nfeData.number,
-                        `Entrada via NFe #${nfeData.number}`
-                    );
-                } else {
-                    console.log(`Criando novo produto: ${item.name} (${item.code})`);
+                        await StorageService.saveProduct(updatedProduct);
 
-                    // Create new product
-                    const newProductId = crypto.randomUUID();
-                    const newProduct: IProduct = {
-                        id: newProductId,
-                        code: item.code || '',
-                        name: item.name || '',
-                        price: item.price || 0,
-                        cost: item.cost || 0,
-                        stock: 0, // Start with 0, updateStock will add the quantity
-                        ncm: item.ncm || '',
-                        cest: '',
-                        origin: '0',
-                        taxGroup: 'A',
-                        unit: (item.unit as any) || 'UN',
-                        minStock: 0
-                    };
+                        // Update stock
+                        if (item.quantity && item.quantity > 0) {
+                            await StorageService.updateStock(
+                                existingProduct.id,
+                                item.quantity,
+                                TransactionType.ENTRY,
+                                nfeData.number,
+                                `Entrada via NFe #${nfeData.number}`
+                            );
+                        }
 
-                    await StorageService.saveProduct(newProduct);
+                        processedProducts.push(existingProduct.name);
+                    } else {
+                        console.log(`Criando novo produto: ${item.name} (${item.code})`);
 
-                    // Record in Kardex and update stock
-                    await StorageService.updateStock(
-                        newProductId,
-                        item.quantity || 0,
-                        TransactionType.ENTRY,
-                        nfeData.number,
-                        `Entrada via NFe #${nfeData.number} (Novo Produto)`
-                    );
+                        // Create new product
+                        const newProductId = crypto.randomUUID();
+                        const newProduct: IProduct = {
+                            id: newProductId,
+                            code: item.code,
+                            name: item.name,
+                            price: item.price || (item.cost || 0) * 1.5, // Se não tiver preço, calcula 50% de margem
+                            cost: item.cost || 0,
+                            stock: 0, // Start with 0, updateStock will add the quantity
+                            ncm: item.ncm || '',
+                            cest: '',
+                            origin: '0',
+                            taxGroup: 'A',
+                            unit: (item.unit as any) || 'UN',
+                            minStock: 0
+                        };
 
-                    // Add to our local list to handle duplicates in the same XML
-                    allProducts.push({ ...newProduct, stock: item.quantity || 0 });
+                        await StorageService.saveProduct(newProduct);
+
+                        // Record in Kardex and update stock
+                        if (item.quantity && item.quantity > 0) {
+                            await StorageService.updateStock(
+                                newProductId,
+                                item.quantity,
+                                TransactionType.ENTRY,
+                                nfeData.number,
+                                `Entrada via NFe #${nfeData.number} (Novo Produto)`
+                            );
+                        }
+
+                        // Add to our local list to handle duplicates in the same XML
+                        allProducts.push({ ...newProduct, stock: item.quantity || 0 });
+                        processedProducts.push(newProduct.name);
+                    }
+                } catch (error: any) {
+                    console.error(`Erro ao processar produto ${item.name}:`, error);
+                    errors.push(`${item.name || 'Produto desconhecido'}: ${error.message || 'Erro desconhecido'}`);
                 }
+            }
+
+            if (processedProducts.length === 0) {
+                throw new Error('Nenhum produto foi processado com sucesso. ' + (errors.length > 0 ? errors.join('; ') : ''));
+            }
+
+            if (errors.length > 0) {
+                console.warn('Alguns produtos tiveram erros:', errors);
+                // Continuar mesmo com alguns erros, mas avisar o usuário
             }
 
             setStep('FINANCIAL');
         } catch (error: any) {
             console.error('Erro no processamento da NFe:', error);
-            alert(`Erro ao processar entrada: ${error.message || 'Erro desconhecido'}`);
+            const errorMessage = error.message || 'Erro desconhecido';
+            alert(`Erro ao processar entrada de mercadorias:\n\n${errorMessage}\n\nVerifique:\n- Se o XML é uma NF-e válida\n- Se os dados do fornecedor estão completos\n- Se há produtos na nota fiscal`);
         } finally {
             setLoading(false);
         }

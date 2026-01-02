@@ -324,22 +324,54 @@ export const StorageService = {
   },
 
   saveSupplier: async (supplier: Partial<ISupplier>) => {
+    // Validar dados obrigatórios
+    if (!supplier.name || !supplier.document) {
+      throw new Error('Nome e documento do fornecedor são obrigatórios');
+    }
+
+    // Limpar e formatar documento (remover caracteres não numéricos)
+    const cleanDocument = supplier.document.replace(/\D/g, '');
+    
+    if (cleanDocument.length < 11) {
+      throw new Error('Documento do fornecedor inválido (deve ter pelo menos 11 dígitos)');
+    }
+
+    const supplierData: any = {
+      name: supplier.name.trim(),
+      document: cleanDocument,
+      updated_at: new Date().toISOString()
+    };
+
+    // Adicionar campos opcionais apenas se existirem
+    if (supplier.email) supplierData.email = supplier.email.trim();
+    if (supplier.phone) supplierData.phone = supplier.phone.trim();
+    if (supplier.address) supplierData.address = supplier.address.trim();
+
     const { data, error } = await supabase
       .from('suppliers')
-      .upsert({
-        name: supplier.name,
-        document: supplier.document,
-        email: supplier.email,
-        phone: supplier.phone,
-        address: supplier.address,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'document' })
+      .upsert(supplierData, { onConflict: 'document' })
       .select()
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao salvar fornecedor no Supabase:', error);
+      throw new Error(`Erro ao salvar fornecedor: ${error.message || 'Erro desconhecido'}`);
+    }
+
+    if (!data) {
+      throw new Error('Fornecedor não foi salvo corretamente');
+    }
+
     AuditService.log('SUPPLIER_UPDATE', `Fornecedor salvo no Supabase: ${supplier.name}`, 'INFO');
-    return data;
+    
+    return {
+      id: data.id,
+      name: data.name,
+      document: data.document,
+      email: data.email,
+      phone: data.phone,
+      address: data.address
+    };
   },
 
   // --- FINANCE (SUPABASE) ---

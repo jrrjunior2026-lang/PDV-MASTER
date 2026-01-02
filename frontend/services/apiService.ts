@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import OfflineCacheService from './offlineCacheService';
 
 // Determina a URL da API baseado na configuração
 // Prioridade: VITE_API_URL > Supabase Functions > Firebase Functions > localhost
@@ -23,6 +24,11 @@ const getApiBaseUrl = (): string => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Verifica se está online
+const isOnline = (): boolean => {
+    return navigator.onLine;
+};
+
 // Log da URL da API em desenvolvimento (para debug)
 if (import.meta.env.DEV) {
     console.log('🔗 API Base URL:', API_BASE_URL);
@@ -35,14 +41,33 @@ if (import.meta.env.DEV) {
 
 export const apiService = {
     get: async (endpoint: string) => {
+        const url = `${API_BASE_URL}${endpoint}`;
+        
+        // Tentar buscar do cache primeiro se offline
+        if (!isOnline()) {
+            const cached = await OfflineCacheService.get(url, 'GET');
+            if (cached) {
+                console.log('📦 Usando cache offline:', endpoint);
+                return cached;
+            }
+            throw new Error('Modo offline: dados não disponíveis no cache local.');
+        }
+
         try {
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
             if (!response.ok) {
                 if (response.status === 0 || response.status === 503) {
+                    // Tentar cache como fallback
+                    const cached = await OfflineCacheService.get(url, 'GET');
+                    if (cached) {
+                        console.log('📦 Usando cache devido a erro de servidor:', endpoint);
+                        return cached;
+                    }
+                    
                     const isSupabase = API_BASE_URL.includes('supabase.co');
                     const isFirebase = API_BASE_URL.includes('cloudfunctions.net');
                     if (isSupabase) {
@@ -55,22 +80,35 @@ export const apiService = {
                 }
                 throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
             }
-            return response.json();
+            const data = await response.json();
+            
+            // Salvar no cache para uso offline
+            await OfflineCacheService.set(url, 'GET', data);
+            
+            return data;
         } catch (error: any) {
-            // Detecta erros de conexão
+            // Detecta erros de conexão e tenta cache
             if (error.message?.includes('Failed to fetch') || 
                 error.message?.includes('ERR_CONNECTION_REFUSED') ||
                 error.message?.includes('NetworkError') ||
                 error.name === 'TypeError') {
+                
+                // Tentar cache como último recurso
+                const cached = await OfflineCacheService.get(url, 'GET');
+                if (cached) {
+                    console.log('📦 Usando cache devido a erro de rede:', endpoint);
+                    return cached;
+                }
+                
                 const isSupabase = API_BASE_URL.includes('supabase.co');
                 const isFirebase = API_BASE_URL.includes('cloudfunctions.net');
                 
                 if (isSupabase) {
-                    throw new Error('Não foi possível conectar ao backend no Supabase. Verifique se a Edge Function está deployada e se VITE_SUPABASE_URL está configurado corretamente.');
+                    throw new Error('Não foi possível conectar ao backend no Supabase. Modo offline ativado - alguns recursos podem estar limitados.');
                 } else if (isFirebase) {
-                    throw new Error('Não foi possível conectar ao backend no Firebase. Verifique se a Cloud Function está deployada e se VITE_API_URL está configurado corretamente.');
+                    throw new Error('Não foi possível conectar ao backend no Firebase. Modo offline ativado - alguns recursos podem estar limitados.');
                 } else {
-                    throw new Error('Servidor backend não está rodando. Verifique se o servidor está iniciado na porta 3001 ou configure VITE_API_URL com a URL do seu backend.');
+                    throw new Error('Servidor backend não está rodando. Modo offline ativado - alguns recursos podem estar limitados.');
                 }
             }
             throw error;
@@ -78,8 +116,18 @@ export const apiService = {
     },
 
     post: async (endpoint: string, data?: any) => {
+        const url = `${API_BASE_URL}${endpoint}`;
+        
+        // Se offline, enfileirar para sincronização posterior
+        if (!isOnline()) {
+            // Importar SyncService dinamicamente para evitar dependência circular
+            const { default: SyncService } = await import('./syncService');
+            SyncService.queueOperation('CREATE', 'SALES', { endpoint, data });
+            throw new Error('Modo offline: operação enfileirada para sincronização quando voltar online.');
+        }
+
         try {
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -101,22 +149,32 @@ export const apiService = {
                 }
                 throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
             }
-            return response.json();
+            const result = await response.json();
+            
+            // Salvar no cache para referência
+            await OfflineCacheService.set(url, 'POST', result, data, 5 * 60 * 1000); // 5 minutos
+            
+            return result;
         } catch (error: any) {
-            // Detecta erros de conexão
+            // Detecta erros de conexão e enfileira para sync
             if (error.message?.includes('Failed to fetch') || 
                 error.message?.includes('ERR_CONNECTION_REFUSED') ||
                 error.message?.includes('NetworkError') ||
                 error.name === 'TypeError') {
+                
+                // Enfileirar para sincronização
+                const { default: SyncService } = await import('./syncService');
+                SyncService.queueOperation('CREATE', 'SALES', { endpoint, data });
+                
                 const isSupabase = API_BASE_URL.includes('supabase.co');
                 const isFirebase = API_BASE_URL.includes('cloudfunctions.net');
                 
                 if (isSupabase) {
-                    throw new Error('Não foi possível conectar ao backend no Supabase. Verifique se a Edge Function está deployada e se VITE_SUPABASE_URL está configurado corretamente.');
+                    throw new Error('Não foi possível conectar ao backend no Supabase. Operação enfileirada para sincronização.');
                 } else if (isFirebase) {
-                    throw new Error('Não foi possível conectar ao backend no Firebase. Verifique se a Cloud Function está deployada e se VITE_API_URL está configurado corretamente.');
+                    throw new Error('Não foi possível conectar ao backend no Firebase. Operação enfileirada para sincronização.');
                 } else {
-                    throw new Error('Servidor backend não está rodando. Verifique se o servidor está iniciado na porta 3001 ou configure VITE_API_URL com a URL do seu backend.');
+                    throw new Error('Servidor backend não está rodando. Operação enfileirada para sincronização.');
                 }
             }
             throw error;
