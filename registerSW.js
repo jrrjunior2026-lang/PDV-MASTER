@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/PDV-MASTER/sw.js', { scope: '/PDV-MASTER/' })})}
